@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Private Notes — API probe</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        padding: 8px 12px 16px;
+        font:
+          12px/1.4 Inter,
+          system-ui,
+          sans-serif;
+        color: var(--figma-color-text, #222);
+        background: var(--figma-color-bg, #fff);
+      }
+      h1 {
+        margin: 0 0 2px;
+        font-size: 14px;
+      }
+      h2 {
+        margin: 14px 0 6px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--figma-color-text-secondary, #666);
+      }
+      p {
+        margin: 2px 0 6px;
+        color: var(--figma-color-text-secondary, #666);
+      }
+      section {
+        border-top: 1px solid var(--figma-color-border, #ddd);
+      }
+      .row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 6px 0;
+        align-items: center;
+      }
+      input,
+      select,
+      textarea,
+      button {
+        font: inherit;
+        color: inherit;
+        background: var(--figma-color-bg-secondary, #f5f5f5);
+        border: 1px solid var(--figma-color-border, #ccc);
+        border-radius: 4px;
+        padding: 4px 8px;
+      }
+      input[type='text'] {
+        flex: 1 1 140px;
+        min-width: 0;
+      }
+      button {
+        cursor: pointer;
+      }
+      button:hover {
+        background: var(--figma-color-bg-hover, #eaeaea);
+      }
+      button:focus-visible,
+      input:focus-visible,
+      select:focus-visible,
+      textarea:focus-visible {
+        outline: 2px solid var(--figma-color-border-selected, #0d99ff);
+        outline-offset: 1px;
+      }
+      button.danger.armed {
+        background: var(--figma-color-bg-danger, #f24822);
+        color: var(--figma-color-text-onbrand, #fff);
+      }
+      pre,
+      textarea {
+        width: 100%;
+        margin: 4px 0;
+        font:
+          11px/1.4 ui-monospace,
+          Consolas,
+          monospace;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      pre {
+        padding: 6px 8px;
+        background: var(--figma-color-bg-secondary, #f5f5f5);
+        border-radius: 4px;
+        max-height: 160px;
+        overflow: auto;
+      }
+      textarea {
+        height: 180px;
+        resize: vertical;
+      }
+      .card {
+        margin: 6px 0;
+        padding: 6px 8px;
+        border: 1px solid var(--figma-color-border, #ddd);
+        border-radius: 4px;
+      }
+      .card code {
+        user-select: all;
+      }
+      .ok {
+        color: var(--figma-color-text-success, #14ae5c);
+      }
+      .bad {
+        color: var(--figma-color-text-danger, #f24822);
+      }
+      .small {
+        font-size: 11px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Private Notes — API probe (этап 2)</h1>
+    <p>
+      Тестовые записи с ключами <code>pn_probe_note_…</code> на корне документа.
+      Продуктовые и чужие pluginData не трогаются. Окно не закрывается само.
+    </p>
+
+    <section>
+      <h2>1. Контекст</h2>
+      <div class="row">
+        <button id="btn-snapshot" type="button">Обновить контекст</button>
+        <span class="small" id="ctx-hint"
+          >Обновляется при смене выделения и страницы.</span
+        >
+      </div>
+      <pre id="ctx">ожидание ответа Plugin Main…</pre>
+    </section>
+
+    <section>
+      <h2>2. Сохранение на figma.root</h2>
+      <div class="row">
+        <label for="save-text">Текст</label>
+        <input id="save-text" type="text" value="probe note" />
+      </div>
+      <div class="row">
+        <label for="save-type">Цель</label>
+        <select id="save-type">
+          <option value="file">file — весь файл</option>
+          <option value="page">page — текущая страница</option>
+          <option value="frame">frame — выделенный FRAME</option>
+          <option value="node">
+            node — любой выделенный слой (только probe)
+          </option>
+        </select>
+        <button id="btn-save" type="button">Сохранить</button>
+        <button id="btn-save-all" type="button">file + page + frame</button>
+      </div>
+    </section>
+
+    <section>
+      <h2>3. Мои записи</h2>
+      <div class="row">
+        <button id="btn-list" type="button">Перечитать записи</button>
+        <label for="edit-text">Новый текст для «Изменить»</label>
+        <input id="edit-text" type="text" value="probe note (edited)" />
+      </div>
+      <div id="notes"></div>
+      <pre id="counts">—</pre>
+    </section>
+
+    <section>
+      <h2>4. Чужой автор / чужой ID</h2>
+      <p>
+        Plugin Main берёт автора из figma.currentUser и никогда не доверяет полю
+        команды. Здесь поле можно подменить намеренно.
+      </p>
+      <div class="row">
+        <button id="btn-seed" type="button">
+          Создать синтетические «чужие» записи
+        </button>
+      </div>
+      <div class="row">
+        <label for="atk-id">ID записи</label>
+        <input id="atk-id" type="text" value="synthetic-foreign-a" />
+      </div>
+      <div class="row">
+        <label for="atk-author">authorId в команде</label>
+        <input
+          id="atk-author"
+          type="text"
+          value="probe-synthetic-foreign-author"
+        />
+      </div>
+      <div class="row">
+        <button id="btn-atk-update" type="button">Попытаться изменить</button>
+        <button id="btn-atk-delete" type="button">Попытаться удалить</button>
+      </div>
+      <p class="small">
+        Пустое «authorId в команде» отправит команду без подмены автора: ключ
+        всё равно строится из текущего пользователя.
+      </p>
+    </section>
+
+    <section>
+      <h2>5. Очистка</h2>
+      <p>
+        Удаляет только ключи <code>pn_probe_note_&lt;мой автор&gt;_*</code> и
+        синтетического «чужого» автора. Чужие реальные probe-ключи и любые
+        другие данные не затрагиваются.
+      </p>
+      <div class="row">
+        <button id="btn-clean" type="button" class="danger">
+          Удалить мои probe-записи
+        </button>
+      </div>
+    </section>
+
+    <section>
+      <h2>6. Журнал</h2>
+      <div class="row">
+        <button id="btn-copy" type="button">Копировать</button>
+        <button id="btn-clear-log" type="button">Очистить журнал</button>
+      </div>
+      <textarea id="log" readonly aria-label="Журнал результатов"></textarea>
+    </section>
+
+    <!--PROBE_UI_SCRIPT-->
+  </body>
+</html>

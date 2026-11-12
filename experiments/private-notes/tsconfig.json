@@ -1,0 +1,4 @@
+{
+  "extends": "../../tsconfig.plugin.json",
+  "include": ["./probe-core.ts", "./protocol.ts", "./plugin.ts"]
+}
