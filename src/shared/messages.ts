@@ -17,6 +17,7 @@ import {
   isNoteKind,
   isRecord,
   isTaskStatus,
+  isValidTargetId,
   validateTarget,
 } from './validation';
 
@@ -64,6 +65,39 @@ export interface TargetsData {
   truncated: boolean;
 }
 
+/** A page or frame whose current state the window wants to know. */
+export interface TargetRef {
+  type: 'page' | 'frame';
+  id: string;
+}
+
+/**
+ * What Plugin Main found for one target. `error` means the API failed and
+ * says nothing about the target: it is never treated as "deleted".
+ */
+export type TargetResolution =
+  | {
+      type: 'page' | 'frame';
+      id: string;
+      state: 'available';
+      /** Current name of the page or frame. */
+      name: string;
+      /** The page the node really lives on now. */
+      pageId: string;
+      pageName: string;
+    }
+  | { type: 'page' | 'frame'; id: string; state: 'missing' }
+  | { type: 'page' | 'frame'; id: string; state: 'error' };
+
+export interface FocusData {
+  outcome: 'page' | 'frame';
+  /** `false` when the target was already on the current page. */
+  pageSwitched: boolean;
+}
+
+/** Most targets one REFRESH_TARGETS command may carry. */
+export const MAX_TARGET_REFS = 25;
+
 // ---------------------------------------------------------------- commands
 
 export interface CommandPayloads {
@@ -85,6 +119,8 @@ export interface CommandPayloads {
   SET_TASK_STATUS: { id: string; expectedRevision: number; status: TaskStatus };
   DELETE_NOTE: { id: string; expectedRevision: number };
   REBIND_NOTE: { id: string; expectedRevision: number; target: NoteTarget };
+  REFRESH_TARGETS: { targets: TargetRef[] };
+  FOCUS_NOTE: { id: string };
 }
 
 export type CommandType = keyof CommandPayloads;
@@ -98,6 +134,8 @@ export interface CommandResults {
   SET_TASK_STATUS: Note;
   DELETE_NOTE: { id: string };
   REBIND_NOTE: Note;
+  REFRESH_TARGETS: { resolutions: TargetResolution[] };
+  FOCUS_NOTE: FocusData;
 }
 
 export interface CommandMessage<C extends CommandType = CommandType> {
@@ -143,6 +181,8 @@ const COMMAND_TYPES: readonly string[] = [
   'SET_TASK_STATUS',
   'DELETE_NOTE',
   'REBIND_NOTE',
+  'REFRESH_TARGETS',
+  'FOCUS_NOTE',
 ];
 
 export function isCommandType(value: unknown): value is CommandType {
@@ -188,6 +228,29 @@ function parsePayload(
         return invalid('bad query');
       }
       return { ok: true, value: { kind, pageId, query } };
+    }
+    case 'REFRESH_TARGETS': {
+      const { targets } = payload;
+      if (!Array.isArray(targets) || targets.length > MAX_TARGET_REFS) {
+        return invalid('bad targets');
+      }
+      const refs: TargetRef[] = [];
+      for (const item of targets as unknown[]) {
+        if (!isRecord(item)) return invalid('bad target ref');
+        const { type: refType, id: refId } = item;
+        if (
+          (refType !== 'page' && refType !== 'frame') ||
+          !isValidTargetId(refType, refId)
+        ) {
+          return invalid('bad target ref');
+        }
+        refs.push({ type: refType, id: refId });
+      }
+      return { ok: true, value: { targets: refs } };
+    }
+    case 'FOCUS_NOTE': {
+      if (typeof payload.id !== 'string') return invalid('bad id');
+      return { ok: true, value: { id: payload.id } };
     }
     case 'CREATE_NOTE': {
       const { id, kind, text, target } = payload;

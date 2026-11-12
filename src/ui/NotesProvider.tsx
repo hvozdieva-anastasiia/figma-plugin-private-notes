@@ -10,6 +10,8 @@ import {
   type ReactNode,
 } from 'react';
 import type { Note, NoteKind, NoteTarget } from '../shared/model';
+import { resolutionKey } from '../shared/group-notes';
+import { MAX_TARGET_REFS, type TargetRef } from '../shared/messages';
 import type { KindFilter, Scope } from '../shared/select-notes';
 import { targetsEqual } from '../shared/validation';
 import { randomId, type Bridge } from './bridge';
@@ -17,6 +19,7 @@ import { errorText } from './labels';
 import {
   defaultTarget,
   initialState,
+  neededTargets,
   reducer,
   type EditorDraft,
   type State,
@@ -30,7 +33,12 @@ export interface NotesActions {
   setScope(scope: Scope): void;
   toggleGroup(key: string): void;
   openCreate(): void;
-  openEdit(note: Note): void;
+  /** `rebind` opens the editor with the choice of another target already open. */
+  openEdit(note: Note, options?: { rebind?: boolean }): void;
+  /** Moves the user to the page or frame of the note. Whole-file notes have nowhere to go. */
+  focusNote(note: Note): Promise<void>;
+  /** Checks the target of a note again after the check failed. */
+  retryTarget(note: Note): void;
   closeEditor(): void;
   askDiscard(asked: boolean): void;
   setEditorText(text: string): void;
@@ -106,8 +114,47 @@ export function NotesProvider({
   const fail = (code: Parameters<typeof errorText>[0], message: string) =>
     errorText(code, message);
 
+  // Targets are checked on demand, in bounded batches, only for the notes held
+  // here; the document is never scanned. `error` answers are not retried by
+  // themselves, so a failing API cannot cause an endless loop.
+  const { notes, resolutions, checking, generation } = state;
+  const neededKey = neededTargets(notes, resolutions, checking)
+    .map((ref) => resolutionKey(ref.type, ref.id))
+    .join('|');
+  useEffect(() => {
+    if (neededKey === '') return;
+    const refs: TargetRef[] = neededKey.split('|').map((key) => {
+      const split = key.indexOf(':');
+      return {
+        type: key.slice(0, split) === 'page' ? 'page' : 'frame',
+        id: key.slice(split + 1),
+      };
+    });
+    dispatch({
+      type: 'RESOLVE_STARTED',
+      keys: refs.map((ref) => resolutionKey(ref.type, ref.id)),
+    });
+    for (let i = 0; i < refs.length; i += MAX_TARGET_REFS) {
+      const chunk = refs.slice(i, i + MAX_TARGET_REFS);
+      void bridge
+        .request('REFRESH_TARGETS', { targets: chunk })
+        .then((result) => {
+          dispatch({
+            type: 'RESOLVED',
+            generation,
+            keys: chunk.map((ref) => resolutionKey(ref.type, ref.id)),
+            resolutions: result.ok
+              ? result.value.resolutions
+              : chunk.map((ref) => ({ ...ref, state: 'error' as const })),
+          });
+        });
+    }
+  }, [bridge, neededKey, generation]);
+
   const actions: NotesActions = {
     async refresh() {
+      // The document may have changed (renames, moves, deletions, Undo): ask again.
+      dispatch({ type: 'CLEAR_RESOLUTIONS' });
       dispatch({ type: 'REFRESHING', value: true });
       const result = await bridge.request('REFRESH_NOTES', {});
       if (result.ok) dispatch({ type: 'NOTES_LOADED', data: result.value });
@@ -145,7 +192,32 @@ export function NotesProvider({
         },
       });
     },
-    openEdit(note) {
+    async focusNote(note) {
+      const { target } = note;
+      if (target.type === 'file') return;
+      const result = await bridge.request('FOCUS_NOTE', { id: note.id });
+      if (result.ok) return;
+      if (result.code === 'TARGET_NOT_FOUND') {
+        // Only a definite "not found" moves the note to the group without a target.
+        dispatch({
+          type: 'TARGET_MISSING',
+          target: { type: target.type, id: target.id },
+        });
+      }
+      dispatch({
+        type: 'NOTICE',
+        notice: { kind: 'error', text: fail(result.code, result.message) },
+      });
+    },
+    retryTarget(note) {
+      const { target } = note;
+      if (target.type === 'file') return;
+      dispatch({
+        type: 'RETRY_RESOLUTIONS',
+        keys: [resolutionKey(target.type, target.id)],
+      });
+    },
+    openEdit(note, options) {
       dispatch({
         type: 'OPEN_EDITOR',
         editor: {
@@ -159,7 +231,7 @@ export function NotesProvider({
           draftTarget: note.target,
           saving: false,
           error: null,
-          pickerOpen: false,
+          pickerOpen: options?.rebind === true,
           discardAsked: false,
         },
       });

@@ -53,6 +53,11 @@ export const CheckIcon = () => (
     <path d="M3.5 8.5l3 3 6-7" />
   </Icon>
 );
+export const GoToIcon = () => (
+  <Icon>
+    <path d="M3 8h9M8.5 4.5L12 8l-3.5 3.5" />
+  </Icon>
+);
 export const SearchIcon = () => (
   <Icon>
     <circle cx="7" cy="7" r="4" />

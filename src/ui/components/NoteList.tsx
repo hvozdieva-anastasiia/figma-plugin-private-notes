@@ -9,17 +9,19 @@ import { NoteItem } from './NoteItem';
 /** Filter first, then group, then count what is visible. Nothing here writes data. */
 export function NoteList() {
   const { state, actions } = useNotes();
-  const { notes, query, filter, scope, context } = state;
+  const { notes, query, filter, scope, context, resolutions } = state;
 
   const grouped = useMemo(() => {
+    const known = new Map(Object.entries(resolutions));
     const visible = selectNotes(notes, {
       query,
       filter,
       scope,
       current: currentSelection(context),
+      resolutions: known,
     });
-    return groupNotes(visible);
-  }, [notes, query, filter, scope, context]);
+    return groupNotes(visible, { resolutions: known });
+  }, [notes, query, filter, scope, context, resolutions]);
 
   if (notes.length === 0) {
     return (

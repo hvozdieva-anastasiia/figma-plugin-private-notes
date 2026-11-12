@@ -437,6 +437,25 @@ textarea {
   color: var(--text-secondary);
 }
 
+.note__meta--warn {
+  color: var(--danger);
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--brand);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.btn--small {
+  height: 24px;
+  margin-top: 6px;
+  padding: 0 8px;
+}
+
 .note__actions {
   display: flex;
   opacity: 0;

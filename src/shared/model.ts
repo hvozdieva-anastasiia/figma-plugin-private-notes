@@ -93,6 +93,7 @@ export type ErrorCode =
   | 'INTERNAL'
   | 'TIMEOUT'
   | 'TARGET_NOT_FOUND'
+  | 'NAVIGATION_FAILED'
   | 'INVALID_COMMAND'
   | 'INVALID_ID'
   | 'INVALID_TEXT'

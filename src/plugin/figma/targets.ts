@@ -7,7 +7,8 @@ import { fail } from '../../shared/validation';
 
 const MAX_OPTIONS = 100;
 
-function pageOf(node: BaseNode): PageNode | null {
+/** The page a node really lives on now, from its parents (not from a stored id). */
+export function pageOf(node: BaseNode): PageNode | null {
   let current: BaseNode | null = node;
   while (current && current.type !== 'PAGE') current = current.parent;
   return current;

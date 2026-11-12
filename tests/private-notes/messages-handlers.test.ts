@@ -5,6 +5,7 @@ import {
   parseCommand,
   readMessageIds,
   type DocumentContext,
+  type TargetResolution,
 } from '../../src/shared/messages';
 import { createCommandHandler } from '../../src/plugin/handlers';
 import { createNotesService } from '../../src/plugin/notes-service';
@@ -48,6 +49,8 @@ describe('command parsing', () => {
       ['SET_TASK_STATUS', { id: 'a', expectedRevision: 1, status: 'done' }],
       ['DELETE_NOTE', { id: 'a', expectedRevision: 1 }],
       ['REBIND_NOTE', { id: 'a', expectedRevision: 1, target: FILE }],
+      ['REFRESH_TARGETS', { targets: [{ type: 'frame', id: 'I1:11;1:9' }] }],
+      ['FOCUS_NOTE', { id: 'a' }],
     ] as const) {
       expect(parseCommand(command(type, payload)).ok).toBe(true);
     }
@@ -112,6 +115,8 @@ describe('command handler', () => {
   let store: MemoryStore;
   let user: string | null;
   let resolved: string[];
+  let asked: string[][];
+  let focused: string[];
   let broken: boolean;
 
   function handler() {
@@ -154,6 +159,48 @@ describe('command handler', () => {
             truncated: false,
           },
         }),
+      resolveTargets: (targets) => {
+        if (broken) return Promise.reject(new Error('API down'));
+        asked.push(targets.map((t) => t.id));
+        return Promise.resolve(
+          targets.map((t): TargetResolution => {
+            const found = known[t.id];
+            return found
+              ? {
+                  type: t.type,
+                  id: t.id,
+                  state: 'available',
+                  name: found.nameSnapshot ?? '',
+                  pageId: found.pageId ?? '',
+                  pageName: found.pageNameSnapshot ?? '',
+                }
+              : { type: t.type, id: t.id, state: 'missing' };
+          }),
+        );
+      },
+      focusTarget: (target) => {
+        if (broken) return Promise.reject(new Error('API down'));
+        if (target.type === 'file') {
+          return Promise.resolve({
+            ok: false,
+            code: 'INVALID_TARGET',
+            message: 'file',
+          });
+        }
+        focused.push(target.id);
+        return Promise.resolve(
+          known[target.id]
+            ? {
+                ok: true,
+                value: { outcome: target.type, pageSwitched: true },
+              }
+            : {
+                ok: false,
+                code: 'TARGET_NOT_FOUND',
+                message: 'Фрейм не найден',
+              },
+        );
+      },
     });
   }
 
@@ -167,6 +214,8 @@ describe('command handler', () => {
     store = new MemoryStore();
     user = '42';
     resolved = [];
+    asked = [];
+    focused = [];
     broken = false;
   });
 
@@ -336,6 +385,135 @@ describe('command handler', () => {
     });
     expect(response.result).toMatchObject({ ok: false, code: 'NOT_FOUND' });
     expect(store.writes).toEqual([]);
+  });
+
+  it('reports what Figma knows about the asked targets, one answer each', async () => {
+    const response = await send('REFRESH_TARGETS', {
+      targets: [
+        { type: 'page', id: '0:1' },
+        { type: 'frame', id: '1:4' },
+        { type: 'frame', id: '9:9' },
+      ],
+    });
+    if (response.command !== 'REFRESH_TARGETS' || !response.result.ok) {
+      throw new Error('bad');
+    }
+    expect(response.result.value.resolutions).toEqual([
+      {
+        type: 'page',
+        id: '0:1',
+        state: 'available',
+        name: 'Mobile (now)',
+        pageId: '0:1',
+        pageName: 'Mobile (now)',
+      },
+      {
+        type: 'frame',
+        id: '1:4',
+        state: 'available',
+        name: 'Checkout (now)',
+        pageId: '0:7',
+        pageName: 'Moved page',
+      },
+      { type: 'frame', id: '9:9', state: 'missing' },
+    ]);
+    expect(store.writes).toEqual([]);
+  });
+
+  it('refuses a batch that is too large or has a malformed target', async () => {
+    const many = Array.from({ length: 26 }, () => ({
+      type: 'page',
+      id: '0:1',
+    }));
+    expect(
+      (await send('REFRESH_TARGETS', { targets: many })).result,
+    ).toMatchObject({
+      ok: false,
+      code: 'INVALID_MESSAGE',
+    });
+    expect(
+      (await send('REFRESH_TARGETS', { targets: [{ type: 'page', id: 'x' }] }))
+        .result,
+    ).toMatchObject({ ok: false, code: 'INVALID_MESSAGE' });
+    expect(asked).toEqual([]);
+  });
+
+  it('does not turn an API failure into a missing target', async () => {
+    broken = true;
+    const response = await send('REFRESH_TARGETS', {
+      targets: [{ type: 'page', id: '0:1' }],
+    });
+    expect(response.result).toMatchObject({ ok: false, code: 'INTERNAL' });
+  });
+
+  it('moves to the target of a stored note, taken from the note and not from the command', async () => {
+    await send('CREATE_NOTE', {
+      id: 'a',
+      kind: 'note',
+      text: 'x',
+      target: frame('1:4', 'Checkout', '0:7', 'Moved page'),
+    });
+    const response = await send('FOCUS_NOTE', {
+      id: 'a',
+      target: page('0:9', 'Evil'),
+    });
+    expect(response.result).toMatchObject({
+      ok: true,
+      value: { outcome: 'frame', pageSwitched: true },
+    });
+    expect(focused).toEqual(['1:4']);
+    expect(store.writes).toHaveLength(1); // only the create
+  });
+
+  it('answers NOT_FOUND for a lost target and for a whole-file or foreign note', async () => {
+    await send('CREATE_NOTE', {
+      id: 'f',
+      kind: 'note',
+      text: 'x',
+      target: FILE,
+    });
+    store.seed(
+      noteKey('42', 'lost'),
+      JSON.stringify({
+        schemaVersion: 1,
+        id: 'lost',
+        authorId: '42',
+        kind: 'note',
+        text: 'x',
+        status: null,
+        target: frame('9:9', 'Gone', '0:1', 'Mobile'),
+        createdAt: 1,
+        updatedAt: 1,
+        revision: 1,
+      }),
+    );
+    expect((await send('FOCUS_NOTE', { id: 'lost' })).result).toMatchObject({
+      ok: false,
+      code: 'TARGET_NOT_FOUND',
+    });
+    expect((await send('FOCUS_NOTE', { id: 'f' })).result).toMatchObject({
+      ok: false,
+      code: 'INVALID_TARGET',
+    });
+    expect((await send('FOCUS_NOTE', { id: 'nope' })).result).toMatchObject({
+      ok: false,
+      code: 'NOT_FOUND',
+    });
+    expect(focused).toEqual(['9:9']);
+  });
+
+  it('reports an API exception during navigation as an error', async () => {
+    await send('CREATE_NOTE', {
+      id: 'a',
+      kind: 'note',
+      text: 'x',
+      target: page('0:1', 'Mobile'),
+    });
+    broken = true;
+    expect((await send('FOCUS_NOTE', { id: 'a' })).result).toMatchObject({
+      ok: false,
+      code: 'INTERNAL',
+    });
   });
 
   it('passes target listing through', async () => {

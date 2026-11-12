@@ -2,6 +2,8 @@
 // written and nothing is read from the document.
 
 import type { Note, NoteTarget } from './model';
+import { resolutionKey, type Resolutions } from './group-notes';
+import type { TargetResolution } from './messages';
 
 export type KindFilter = 'all' | 'notes' | 'open' | 'done';
 export type Scope = 'all' | 'current';
@@ -17,13 +19,16 @@ export interface SelectOptions {
   filter: KindFilter;
   scope: Scope;
   current: CurrentSelection;
+  /** What Figma reported for the notes' targets; absent entries are unchecked. */
+  resolutions?: Resolutions;
 }
 
-export const DEFAULT_SELECT: Omit<SelectOptions, 'current'> = {
-  query: '',
-  filter: 'all',
-  scope: 'all',
-};
+export const DEFAULT_SELECT: Pick<SelectOptions, 'query' | 'filter' | 'scope'> =
+  {
+    query: '',
+    filter: 'all',
+    scope: 'all',
+  };
 
 export function matchesFilter(note: Note, filter: KindFilter): boolean {
   switch (filter) {
@@ -42,12 +47,30 @@ function targetNames(target: NoteTarget): string {
   return `${target.nameSnapshot ?? ''} ${target.pageNameSnapshot ?? ''}`;
 }
 
-export function matchesQuery(note: Note, query: string): boolean {
+function resolutionOf(
+  note: Note,
+  resolutions: Resolutions | undefined,
+): TargetResolution | undefined {
+  const { target } = note;
+  if (target.type === 'file') return undefined;
+  return resolutions?.get(resolutionKey(target.type, target.id));
+}
+
+export function matchesQuery(
+  note: Note,
+  query: string,
+  resolutions?: Resolutions,
+): boolean {
   const needle = query.trim().toLowerCase();
   if (needle === '') return true;
+  const live = resolutionOf(note, resolutions);
+  const names =
+    live?.state === 'available'
+      ? `${live.name} ${live.pageName}`
+      : targetNames(note.target);
   return (
     note.text.toLowerCase().includes(needle) ||
-    targetNames(note.target).toLowerCase().includes(needle)
+    names.toLowerCase().includes(needle)
   );
 }
 
@@ -60,17 +83,23 @@ export function matchesScope(
   note: Note,
   scope: Scope,
   current: CurrentSelection,
+  resolutions?: Resolutions,
 ): boolean {
   if (scope === 'all') return true;
   const { target } = note;
+  const live = resolutionOf(note, resolutions);
+  // A note whose target is gone is not on any page: only the general list shows it.
+  if (live?.state === 'missing') return false;
   if (current.frameId !== null) {
     return target.type === 'frame' && target.id === current.frameId;
   }
   if (current.pageId !== null) {
-    return (
-      (target.type === 'page' && target.id === current.pageId) ||
-      (target.type === 'frame' && target.pageId === current.pageId)
-    );
+    if (target.type === 'page') return target.id === current.pageId;
+    if (target.type === 'frame') {
+      // The page a frame is on now, not the one remembered when it was saved.
+      const pageId = live?.state === 'available' ? live.pageId : target.pageId;
+      return pageId === current.pageId;
+    }
   }
   return false;
 }
@@ -82,7 +111,7 @@ export function selectNotes(
   return notes.filter(
     (note) =>
       matchesFilter(note, options.filter) &&
-      matchesQuery(note, options.query) &&
-      matchesScope(note, options.scope, options.current),
+      matchesQuery(note, options.query, options.resolutions) &&
+      matchesScope(note, options.scope, options.current, options.resolutions),
   );
 }

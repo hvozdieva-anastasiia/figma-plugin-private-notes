@@ -1,16 +1,36 @@
 import { describe, expect, it } from 'vitest';
-import { groupNotes, totalCount } from '../../src/shared/group-notes';
+import {
+  groupNotes,
+  resolutionKey,
+  totalCount,
+} from '../../src/shared/group-notes';
 import {
   matchesQuery,
   selectNotes,
   type SelectOptions,
 } from '../../src/shared/select-notes';
+import type { TargetResolution } from '../../src/shared/messages';
 import { FILE, frame, makeNote, page } from './fixtures';
 
 const P1 = page('0:1', 'Mobile');
 const F1 = frame('1:1', 'Checkout', '0:1', 'Mobile');
 const F2 = frame('1:2', 'Cart', '0:1', 'Mobile');
 const F3 = frame('1:3', 'Home', '0:2', 'Desktop');
+
+const missing = (type: 'page' | 'frame', id: string) =>
+  [resolutionKey(type, id), { type, id, state: 'missing' }] as const;
+
+const live = (
+  type: 'page' | 'frame',
+  id: string,
+  name: string,
+  pageId: string,
+  pageName: string,
+) =>
+  [
+    resolutionKey(type, id),
+    { type, id, state: 'available', name, pageId, pageName },
+  ] as const;
 
 const all = {
   query: '',
@@ -92,15 +112,75 @@ describe('grouping', () => {
     ]);
   });
 
-  it('puts notes with a missing target into their own group', () => {
+  it('puts notes with a missing target into their own group and keeps their text', () => {
     const lost = makeNote({ target: F1 });
     const fine = makeNote({ target: F2 });
     const grouped = groupNotes([lost, fine], {
-      missingNoteIds: new Set([lost.id]),
+      resolutions: new Map<string, TargetResolution>([missing('frame', '1:1')]),
     });
     expect(grouped.unresolved?.notes.map((n) => n.id)).toEqual([lost.id]);
+    expect(grouped.unresolved?.notes[0]?.text).toBe(lost.text);
     expect(grouped.pages[0]?.frames).toHaveLength(1);
     expect(totalCount(grouped)).toBe(2);
+  });
+
+  it('never treats an unchecked target or a failed check as lost', () => {
+    const a = makeNote({ target: F1 });
+    const b = makeNote({ target: P1 });
+    const grouped = groupNotes([a, b], {
+      resolutions: new Map<string, TargetResolution>([
+        [
+          resolutionKey('frame', '1:1'),
+          { type: 'frame', id: '1:1', state: 'error' },
+        ],
+      ]),
+    });
+    expect(grouped.unresolved).toBeNull();
+    expect(totalCount(grouped)).toBe(2);
+  });
+
+  it('shows the current names, not the names saved in the notes', () => {
+    const note = makeNote({ target: F1 });
+    const grouped = groupNotes([note], {
+      resolutions: new Map<string, TargetResolution>([
+        live('frame', '1:1', 'Checkout v2', '0:1', 'Mobile app'),
+      ]),
+    });
+    expect(grouped.pages[0]?.label).toBe('Mobile app');
+    expect(grouped.pages[0]?.frames[0]).toMatchObject({
+      key: 'frame:1:1',
+      label: 'Checkout v2',
+    });
+  });
+
+  it('puts a moved frame under the page it is on now', () => {
+    const note = makeNote({ target: F1 }); // saved on 0:1 Mobile
+    const grouped = groupNotes([note], {
+      resolutions: new Map<string, TargetResolution>([
+        live('frame', '1:1', 'Checkout', '0:2', 'Desktop'),
+      ]),
+    });
+    expect(grouped.pages).toHaveLength(1);
+    expect(grouped.pages[0]).toMatchObject({
+      id: '0:2',
+      label: 'Desktop',
+      count: 1,
+    });
+  });
+
+  it('keeps two frames with one name apart and counts them separately', () => {
+    const a = makeNote({ target: frame('1:1', 'Frame', '0:1', 'Mobile') });
+    const b = makeNote({ target: frame('1:9', 'Frame', '0:1', 'Mobile') });
+    const grouped = groupNotes([a, b], {
+      resolutions: new Map<string, TargetResolution>([
+        live('frame', '1:1', 'Frame', '0:1', 'Mobile'),
+        live('frame', '1:9', 'Frame', '0:1', 'Mobile'),
+      ]),
+    });
+    expect(grouped.pages[0]?.frames.map((f) => f.key).sort()).toEqual([
+      'frame:1:1',
+      'frame:1:9',
+    ]);
   });
 
   it('orders notes by recent change', () => {
@@ -167,6 +247,37 @@ describe('select', () => {
       selectNotes(notes, { ...all, scope: 'current', current }),
     ).not.toContain(note);
     expect(selectNotes(notes, all)).toContain(note);
+  });
+
+  it('follows the page a frame is on now, and drops lost notes from the current mode', () => {
+    const moved = makeNote({ target: F1 }); // saved on 0:1
+    const gone = makeNote({ target: F2 });
+    const resolutions = new Map<string, TargetResolution>([
+      live('frame', '1:1', 'Checkout', '0:2', 'Desktop'),
+      missing('frame', '1:2'),
+    ]);
+    const onDesktop = { frameId: null, pageId: '0:2' };
+    const onMobile = { frameId: null, pageId: '0:1' };
+    const base = { ...all, scope: 'current', resolutions } as const;
+    expect(selectNotes([moved, gone], { ...base, current: onDesktop })).toEqual(
+      [moved],
+    );
+    expect(selectNotes([moved, gone], { ...base, current: onMobile })).toEqual(
+      [],
+    );
+  });
+
+  it('searches the current name of a renamed target', () => {
+    const note = makeNote({ target: F1, text: 'plain' });
+    const resolutions = new Map<string, TargetResolution>([
+      live('frame', '1:1', 'Payment', '0:1', 'Mobile'),
+    ]);
+    expect(
+      selectNotes([note], { ...all, query: 'payment', resolutions }),
+    ).toEqual([note]);
+    expect(
+      selectNotes([note], { ...all, query: 'checkout', resolutions }),
+    ).toEqual([]);
   });
 
   it('shows nothing in current mode without a page', () => {

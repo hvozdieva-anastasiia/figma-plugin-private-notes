@@ -83,6 +83,8 @@ interface Patch {
 
 export interface NotesService {
   list(): Result<ListReport>;
+  /** One note of the current author by id. */
+  get(id: string): Result<Note>;
   create(input: CreateNoteInput): Result<Note>;
   update(input: UpdateNoteInput): Result<Note>;
   rebind(input: RebindNoteInput): Result<Note>;
@@ -192,6 +194,12 @@ export function createNotesService(deps: NotesServiceDeps): NotesService {
       const author = currentAuthor();
       if (!author.ok) return author;
       return { ok: true, value: listOwnNotes(store, author.value, limits) };
+    },
+
+    get(id) {
+      const author = currentAuthor();
+      if (!author.ok) return author;
+      return readOwnNote(store, author.value, id, limits);
     },
 
     create(input) {

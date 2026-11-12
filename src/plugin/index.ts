@@ -3,6 +3,7 @@
 import { PROTOCOL_VERSION, type ContextMessage } from '../shared/messages';
 import { readCurrentUserId } from './current-user';
 import { readContext } from './figma/selection';
+import { focusTarget, resolveTargets } from './figma/navigation';
 import { listTargets, resolveTarget } from './figma/targets';
 import { createCommandHandler } from './handlers';
 import { createNotesService } from './notes-service';
@@ -21,6 +22,8 @@ const handle = createCommandHandler({
   getContext: () => readContext(figma),
   resolveTarget: (target) => resolveTarget(figma, target),
   listTargets: (request) => listTargets(figma, request),
+  resolveTargets: (targets) => resolveTargets(figma, targets),
+  focusTarget: (target) => focusTarget(figma, target),
 });
 
 figma.ui.onmessage = (raw: unknown) => {

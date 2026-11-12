@@ -12,8 +12,11 @@ import {
   type CommandResults,
   type CommandType,
   type DocumentContext,
+  type FocusData,
   type NotesData,
   type ResponseMessage,
+  type TargetRef,
+  type TargetResolution,
   type TargetsData,
 } from '../shared/messages';
 import { fail } from '../shared/validation';
@@ -33,6 +36,10 @@ export interface HandlerDeps {
     pageId: string | null;
     query: string;
   }): Promise<Result<TargetsData>>;
+  /** Looks up each target by ID, in a bounded batch; one failure does not stop the rest. */
+  resolveTargets(targets: TargetRef[]): Promise<TargetResolution[]>;
+  /** Switches the page and, for a frame, selects it and brings it into view. */
+  focusTarget(target: NoteTarget): Promise<Result<FocusData>>;
 }
 
 function notesData(report: ListReport): NotesData {
@@ -140,6 +147,27 @@ export function createCommandHandler(deps: HandlerDeps): CommandHandler {
           ids,
           service.rebind({ ...command.payload, target: resolved.value }),
         );
+      }
+      case 'REFRESH_TARGETS':
+        return respond('REFRESH_TARGETS', ids, {
+          ok: true,
+          value: {
+            resolutions: await deps.resolveTargets(command.payload.targets),
+          },
+        });
+      case 'FOCUS_NOTE': {
+        // The target comes from the stored note of the current author, not from the UI.
+        const stored = service.get(command.payload.id);
+        if (!stored.ok) return respond('FOCUS_NOTE', ids, stored);
+        const { target } = stored.value;
+        if (target.type === 'file') {
+          return respond(
+            'FOCUS_NOTE',
+            ids,
+            fail('INVALID_TARGET', 'Заметка относится ко всему файлу'),
+          );
+        }
+        return respond('FOCUS_NOTE', ids, await deps.focusTarget(target));
       }
       case 'SET_TASK_STATUS':
         return respond(

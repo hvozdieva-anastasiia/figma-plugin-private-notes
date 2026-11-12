@@ -3,7 +3,14 @@
 // `context`, never `editor.draftTarget`.
 
 import type { Note, NoteKind, NoteTarget } from '../shared/model';
-import type { DocumentContext, InitData, NotesData } from '../shared/messages';
+import type {
+  DocumentContext,
+  InitData,
+  NotesData,
+  TargetRef,
+  TargetResolution,
+} from '../shared/messages';
+import { resolutionKey } from '../shared/group-notes';
 import {
   DEFAULT_SELECT,
   type CurrentSelection,
@@ -52,6 +59,15 @@ export interface State {
   busyIds: string[];
   refreshing: boolean;
   notice: Notice | null;
+  /**
+   * What Figma reported for page and frame targets, keyed `type:id`. Absent
+   * means unchecked. This is a cache of the document, never of the notes.
+   */
+  resolutions: Record<string, TargetResolution>;
+  /** Targets with a request in flight. */
+  checking: Record<string, true>;
+  /** Grows when the cache is cleared, so that answers to old requests are dropped. */
+  generation: number;
 }
 
 export const initialState: State = {
@@ -69,6 +85,9 @@ export const initialState: State = {
   busyIds: [],
   refreshing: false,
   notice: null,
+  resolutions: {},
+  checking: {},
+  generation: 0,
 };
 
 export type EditorPatch = Partial<
@@ -102,7 +121,19 @@ export type Action =
   | { type: 'NOTE_DELETED'; id: string }
   | { type: 'ASK_DELETE'; id: string | null }
   | { type: 'BUSY'; id: string; busy: boolean }
-  | { type: 'NOTICE'; notice: Omit<Notice, 'id'> | null };
+  | { type: 'NOTICE'; notice: Omit<Notice, 'id'> | null }
+  | { type: 'RESOLVE_STARTED'; keys: string[] }
+  | {
+      type: 'RESOLVED';
+      generation: number;
+      keys: string[];
+      resolutions: TargetResolution[];
+    }
+  /** Forget what is known about all targets; the next check asks Figma again. */
+  | { type: 'CLEAR_RESOLUTIONS' }
+  /** Forget `error` results of some targets so that they are checked again. */
+  | { type: 'RETRY_RESOLUTIONS'; keys: string[] }
+  | { type: 'TARGET_MISSING'; target: TargetRef };
 
 let noticeCounter = 0;
 
@@ -178,6 +209,46 @@ export function reducer(state: State, action: Action): State {
         busyIds: action.busy ? [...rest, action.id] : rest,
       };
     }
+    case 'RESOLVE_STARTED': {
+      const checking = { ...state.checking };
+      for (const key of action.keys) checking[key] = true;
+      return { ...state, checking };
+    }
+    case 'RESOLVED': {
+      // An answer to a request made before the cache was cleared is stale.
+      if (action.generation !== state.generation) return state;
+      const checking = { ...state.checking };
+      for (const key of action.keys) delete checking[key];
+      const resolutions = { ...state.resolutions };
+      for (const item of action.resolutions) {
+        resolutions[resolutionKey(item.type, item.id)] = item;
+      }
+      return { ...state, checking, resolutions };
+    }
+    case 'CLEAR_RESOLUTIONS':
+      return {
+        ...state,
+        resolutions: {},
+        checking: {},
+        generation: state.generation + 1,
+      };
+    case 'RETRY_RESOLUTIONS': {
+      const resolutions = { ...state.resolutions };
+      for (const key of action.keys) {
+        if (resolutions[key]?.state === 'error') delete resolutions[key];
+      }
+      return { ...state, resolutions };
+    }
+    case 'TARGET_MISSING': {
+      const { type, id } = action.target;
+      return {
+        ...state,
+        resolutions: {
+          ...state.resolutions,
+          [resolutionKey(type, id)]: { type, id, state: 'missing' },
+        },
+      };
+    }
     case 'NOTICE':
       return {
         ...state,
@@ -237,6 +308,23 @@ export const FILE_TARGET: NoteTarget = {
 export function defaultTarget(context: DocumentContext | null): NoteTarget {
   if (!context) return FILE_TARGET;
   return frameTargetFromContext(context) ?? pageTargetFromContext(context);
+}
+
+/** Distinct page and frame targets of the notes that nobody has asked about yet. */
+export function neededTargets(
+  notes: readonly Note[],
+  resolutions: Record<string, TargetResolution>,
+  checking: Record<string, true>,
+): TargetRef[] {
+  const found = new Map<string, TargetRef>();
+  for (const note of notes) {
+    const { target } = note;
+    if (target.type === 'file') continue;
+    const key = resolutionKey(target.type, target.id);
+    if (resolutions[key] || checking[key] || found.has(key)) continue;
+    found.set(key, { type: target.type, id: target.id });
+  }
+  return [...found.values()];
 }
 
 export function isDirty(editor: EditorDraft): boolean {

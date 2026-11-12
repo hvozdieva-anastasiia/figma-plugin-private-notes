@@ -71,6 +71,17 @@ export function isValidNoteId(id: unknown): id is string {
   return typeof id === 'string' && NOTE_ID_PATTERN.test(id);
 }
 
+/** A node id that can be the id of a page or of a frame target. */
+export function isValidTargetId(
+  type: 'page' | 'frame',
+  id: unknown,
+): id is string {
+  return (
+    typeof id === 'string' &&
+    (type === 'page' ? PAGE_ID_PATTERN : FRAME_ID_PATTERN).test(id)
+  );
+}
+
 export function isValidRevision(value: unknown): value is number {
   return typeof value === 'number' && Number.isInteger(value) && value >= 1;
 }

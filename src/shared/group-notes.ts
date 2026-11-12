@@ -1,9 +1,20 @@
 // Builds the single grouped list: whole file, pages with their own notes and
-// their frames, and notes without a reachable target. Pure and driven by what
-// the notes already say about their targets; resolving moved or deleted
-// targets is a later step (stage 6) that feeds `missingNoteIds`.
+// their frames, and notes without a reachable target. Pure.
+//
+// Groups are keyed by target type and ID, never by name. Names and the page of
+// a frame come from `resolutions` (what Figma reported for the target) when
+// they are known, and from the snapshot stored in the note otherwise. A target
+// whose resolution is `missing` moves its notes to "Без доступной привязки";
+// `unchecked`, `checking` and `error` never do.
 
 import type { Note } from './model';
+import type { TargetResolution } from './messages';
+
+export type Resolutions = ReadonlyMap<string, TargetResolution>;
+
+export function resolutionKey(type: 'page' | 'frame', id: string): string {
+  return `${type}:${id}`;
+}
 
 export interface FileGroup {
   key: 'file';
@@ -43,8 +54,7 @@ export interface GroupedNotes {
 }
 
 export interface GroupOptions {
-  /** Notes whose target is known to be missing. */
-  missingNoteIds?: ReadonlySet<string>;
+  resolutions?: Resolutions;
 }
 
 const byRecent = (a: Note, b: Note) =>
@@ -53,48 +63,79 @@ const byRecent = (a: Note, b: Note) =>
 const byLabel = <T extends { label: string; id: string }>(a: T, b: T) =>
   a.label.localeCompare(b.label) || a.id.localeCompare(b.id);
 
-/** The newest note of a group decides its label: names are only snapshots. */
-function newest(notes: readonly Note[]): Note {
-  let best = notes[0] as Note;
-  for (const note of notes) if (note.updatedAt > best.updatedAt) best = note;
-  return best;
+interface Placed {
+  note: Note;
+  name: string;
+  pageId: string;
+  pageName: string;
+  /** Names come from Figma now, not from the snapshot in the note. */
+  live: boolean;
+}
+
+interface Label {
+  text: string;
+  live: boolean;
+  updatedAt: number;
+}
+
+/** A live name beats a snapshot; among equals the newest note decides. */
+function better(candidate: Label, current: Label | undefined): boolean {
+  if (!current) return true;
+  if (candidate.live !== current.live) return candidate.live;
+  return candidate.updatedAt > current.updatedAt;
+}
+
+function place(note: Note, resolution: TargetResolution | undefined): Placed {
+  const { target } = note;
+  if (resolution?.state === 'available') {
+    return {
+      note,
+      name: resolution.name,
+      pageId: resolution.pageId,
+      pageName: resolution.pageName,
+      live: true,
+    };
+  }
+  return {
+    note,
+    name: target.nameSnapshot ?? '',
+    pageId: target.pageId ?? '',
+    pageName: target.pageNameSnapshot ?? '',
+    live: false,
+  };
 }
 
 export function groupNotes(
   notes: readonly Note[],
   options: GroupOptions = {},
 ): GroupedNotes {
-  const missing = options.missingNoteIds;
   const fileNotes: Note[] = [];
   const unresolvedNotes: Note[] = [];
-  const pageNotes = new Map<string, Note[]>();
-  const frameNotes = new Map<string, Note[]>();
+  const pageNotes = new Map<string, Placed[]>();
+  const frameNotes = new Map<string, Placed[]>();
 
   for (const note of notes) {
     const { target } = note;
-    if (missing?.has(note.id)) {
-      unresolvedNotes.push(note);
-    } else if (target.type === 'file') {
+    if (target.type === 'file') {
       fileNotes.push(note);
-    } else if (target.type === 'page') {
-      const list = pageNotes.get(target.id) ?? [];
-      list.push(note);
-      pageNotes.set(target.id, list);
-    } else {
-      const list = frameNotes.get(target.id) ?? [];
-      list.push(note);
-      frameNotes.set(target.id, list);
+      continue;
     }
+    const resolution = options.resolutions?.get(
+      resolutionKey(target.type, target.id),
+    );
+    if (resolution?.state === 'missing') {
+      unresolvedNotes.push(note);
+      continue;
+    }
+    const placed = place(note, resolution);
+    const map = target.type === 'page' ? pageNotes : frameNotes;
+    const list = map.get(target.id) ?? [];
+    list.push(placed);
+    map.set(target.id, list);
   }
 
-  // A page group exists when the page or any of its frames has a note.
   const pages = new Map<string, PageGroup>();
-  const labelSources = new Map<string, Note[]>();
-  const rememberLabel = (pageId: string, note: Note) => {
-    const list = labelSources.get(pageId) ?? [];
-    list.push(note);
-    labelSources.set(pageId, list);
-  };
+  const pageLabels = new Map<string, Label>();
   const ensurePage = (pageId: string): PageGroup => {
     let group = pages.get(pageId);
     if (!group) {
@@ -110,32 +151,49 @@ export function groupNotes(
     }
     return group;
   };
+  const offerPageLabel = (pageId: string, p: Placed, text: string) => {
+    const candidate = { text, live: p.live, updatedAt: p.note.updatedAt };
+    if (better(candidate, pageLabels.get(pageId))) {
+      pageLabels.set(pageId, candidate);
+    }
+  };
 
   for (const [id, list] of pageNotes) {
     const group = ensurePage(id);
-    group.notes = [...list].sort(byRecent);
-    for (const note of list) rememberLabel(id, note);
+    group.notes = list.map((p) => p.note).sort(byRecent);
+    for (const p of list) offerPageLabel(id, p, p.name);
   }
+
   for (const [id, list] of frameNotes) {
-    const latest = newest(list);
-    const pageId = latest.target.pageId as string;
-    const frame: FrameGroup = {
+    // All notes of one frame share its resolution, so any of them names it.
+    let label: Label | undefined;
+    let pageId = '';
+    for (const p of list) {
+      const candidate = {
+        text: p.name,
+        live: p.live,
+        updatedAt: p.note.updatedAt,
+      };
+      if (better(candidate, label)) {
+        label = candidate;
+        pageId = p.pageId;
+      }
+    }
+    const frameGroup: FrameGroup = {
       key: `frame:${id}`,
       id,
-      label: latest.target.nameSnapshot ?? '',
-      notes: [...list].sort(byRecent),
+      label: label?.text ?? '',
+      notes: list.map((p) => p.note).sort(byRecent),
       count: list.length,
     };
-    const page = ensurePage(pageId);
-    page.frames.push(frame);
-    rememberLabel(pageId, latest);
+    ensurePage(pageId).frames.push(frameGroup);
+    for (const p of list) {
+      if (p.pageId === pageId) offerPageLabel(pageId, p, p.pageName);
+    }
   }
 
   for (const [pageId, group] of pages) {
-    const sources = labelSources.get(pageId) ?? [];
-    group.label = sources.length
-      ? (newest(sources).target.pageNameSnapshot ?? '')
-      : '';
+    group.label = pageLabels.get(pageId)?.text ?? '';
     group.frames.sort(byLabel);
     group.count =
       group.notes.length +

@@ -5,6 +5,7 @@ import type { NoteTarget } from '../../src/shared/model';
 import {
   PROTOCOL_VERSION,
   type DocumentContext,
+  type TargetResolution,
 } from '../../src/shared/messages';
 import { createCommandHandler } from '../../src/plugin/handlers';
 import { createNotesService } from '../../src/plugin/notes-service';
@@ -14,6 +15,12 @@ import { createBridge, type Transport } from '../../src/ui/bridge';
 import { NotesProvider } from '../../src/ui/NotesProvider';
 import { FILE, frame, page } from './fixtures';
 import { MemoryStore } from './memory-store';
+
+interface Live {
+  name: string;
+  pageId: string;
+  pageName: string;
+}
 
 const PAGE_CONTEXT: DocumentContext = {
   page: { id: '0:1', name: 'Mobile' },
@@ -35,6 +42,21 @@ function setup(initial: DocumentContext = PAGE_CONTEXT) {
     getUserId: () => '42',
     now: () => 1_700_000_000_000,
   });
+  /** What Figma currently says about targets; unlisted targets are as they were saved. */
+  const world: Record<string, Live | 'missing' | 'error'> = {};
+  const asked: string[][] = [];
+  const focused: string[] = [];
+  const snapshotOf = (id: string): Live => {
+    const listed = service.list();
+    const found = listed.ok
+      ? listed.value.notes.find((note) => note.target.id === id)
+      : undefined;
+    return {
+      name: found?.target.nameSnapshot ?? '',
+      pageId: found?.target.pageId ?? '',
+      pageName: found?.target.pageNameSnapshot ?? '',
+    };
+  };
   const handle = createCommandHandler({
     service,
     getContext: () => context,
@@ -45,6 +67,42 @@ function setup(initial: DocumentContext = PAGE_CONTEXT) {
         ok: true as const,
         value: { options: [], truncated: false },
       }),
+    resolveTargets: (targets) => {
+      asked.push(targets.map((t) => t.id));
+      return Promise.resolve(
+        targets.map((t): TargetResolution => {
+          const entry = world[t.id] ?? snapshotOf(t.id);
+          if (entry === 'missing')
+            return { type: t.type, id: t.id, state: 'missing' };
+          if (entry === 'error')
+            return { type: t.type, id: t.id, state: 'error' };
+          return { type: t.type, id: t.id, state: 'available', ...entry };
+        }),
+      );
+    },
+    focusTarget: (target) => {
+      if (target.type === 'file') {
+        return Promise.resolve({
+          ok: false as const,
+          code: 'INVALID_TARGET' as const,
+          message: '',
+        });
+      }
+      const entry = world[target.id];
+      if (entry === 'error') return Promise.reject(new Error('API down'));
+      if (entry === 'missing') {
+        return Promise.resolve({
+          ok: false as const,
+          code: 'TARGET_NOT_FOUND' as const,
+          message: 'Фрейм не найден',
+        });
+      }
+      focused.push(target.id);
+      return Promise.resolve({
+        ok: true as const,
+        value: { outcome: target.type, pageSwitched: false },
+      });
+    },
   });
   const listeners = new Set<(message: unknown) => void>();
   const transport: Transport = {
@@ -67,6 +125,9 @@ function setup(initial: DocumentContext = PAGE_CONTEXT) {
   return {
     store,
     service,
+    world,
+    asked,
+    focused,
     user: userEvent.setup(),
     changeContext(next: DocumentContext) {
       context = next;
@@ -389,5 +450,251 @@ describe('managing notes', () => {
     );
     expect(screen.getByText('Про Checkout')).toBeInTheDocument();
     expect(screen.queryByText('Про файл')).not.toBeInTheDocument();
+  });
+});
+
+describe('targets', () => {
+  const FRAME = frame('1:4', 'Checkout', '0:1', 'Mobile');
+
+  async function withTargetNotes() {
+    const env = setup();
+    seed(env.service, 'f', 'Про фрейм', FRAME);
+    seed(env.service, 'p', 'Про страницу', page('0:1', 'Mobile'));
+    seed(env.service, 'w', 'Про файл', FILE);
+    await ready();
+    await env.user.click(
+      screen.getByRole('button', { name: 'Обновить список' }),
+    );
+    await screen.findByText('Про фрейм');
+    return env;
+  }
+
+  async function refresh(user: ReturnType<typeof userEvent.setup>) {
+    await user.click(screen.getByRole('button', { name: 'Обновить список' }));
+  }
+
+  const storedFrameNote = (store: MemoryStore) =>
+    JSON.parse(
+      store.get(store.keys().find((k) => k.endsWith('_f')) as string),
+    ) as { id: string; text: string; target: NoteTarget; revision: number };
+
+  it('checks each target once, in one batch, without touching any note', async () => {
+    const { asked, store } = await withTargetNotes();
+    await waitFor(() => expect(asked.length).toBeGreaterThan(0));
+    expect(asked.flat().sort()).toEqual(['0:1', '1:4']);
+    expect(store.writes).toHaveLength(3); // only the three seeded notes
+  });
+
+  it('shows the current name of a renamed frame and of its page', async () => {
+    const env = setup();
+    seed(env.service, 'f', 'Про фрейм', FRAME);
+    env.world['1:4'] = {
+      name: 'Payment',
+      pageId: '0:1',
+      pageName: 'Mobile app',
+    };
+    await ready();
+    await refresh(env.user);
+    expect(
+      await screen.findByRole('heading', { name: /Фрейм · Payment/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /Страница · Mobile app/ }),
+    ).toBeInTheDocument();
+  });
+
+  it('shows a moved frame under the page it is on now', async () => {
+    const env = setup();
+    seed(env.service, 'f', 'Про фрейм', FRAME);
+    env.world['1:4'] = { name: 'Checkout', pageId: '0:2', pageName: 'Desktop' };
+    await ready();
+    await refresh(env.user);
+    expect(
+      await screen.findByRole('heading', { name: /Страница · Desktop/ }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: /Страница · Mobile/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('moves a note of a deleted frame to "Без доступной привязки" and keeps its text', async () => {
+    const env = await withTargetNotes();
+    env.world['1:4'] = 'missing';
+    await refresh(env.user);
+    const group = await screen.findByRole('heading', {
+      name: /Без доступной привязки/,
+    });
+    expect(within(group).getByLabelText('Заметок: 1')).toBeInTheDocument();
+    expect(screen.getByText('Про фрейм')).toBeInTheDocument();
+    expect(
+      screen.getByText(/цель не найдена, текст сохранён/),
+    ).toBeInTheDocument();
+    // Nothing was turned into a whole-file note and nothing was rewritten.
+    const stored = storedFrameNote(env.store);
+    expect(stored.target).toEqual(FRAME);
+    expect(stored.revision).toBe(1);
+  });
+
+  it('brings the note back when Undo restores the target and the list is refreshed', async () => {
+    const env = await withTargetNotes();
+    env.world['1:4'] = 'missing';
+    await refresh(env.user);
+    await screen.findByRole('heading', { name: /Без доступной привязки/ });
+    delete env.world['1:4'];
+    await refresh(env.user);
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('heading', { name: /Без доступной привязки/ }),
+      ).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.getByRole('heading', { name: /Фрейм · Checkout/ }),
+    ).toBeInTheDocument();
+  });
+
+  it('does not call a target lost when the check itself fails, and retries on request', async () => {
+    const env = await withTargetNotes();
+    env.world['1:4'] = 'error';
+    await refresh(env.user);
+    expect(
+      await screen.findByText(/Не удалось проверить привязку/),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: /Без доступной привязки/ }),
+    ).not.toBeInTheDocument();
+    const before = env.asked.flat().length;
+    delete env.world['1:4'];
+    await env.user.click(
+      screen.getByRole('button', { name: 'Проверить снова' }),
+    );
+    await waitFor(() =>
+      expect(env.asked.flat().length).toBeGreaterThan(before),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByText(/Не удалось проверить привязку/),
+      ).not.toBeInTheDocument(),
+    );
+  });
+
+  it('moves to the target of a note and keeps the window open', async () => {
+    const env = await withTargetNotes();
+    const item = screen.getByText('Про фрейм').closest('li') as HTMLElement;
+    await env.user.click(
+      within(item).getByRole('button', { name: 'Перейти к привязке' }),
+    );
+    await waitFor(() => expect(env.focused).toEqual(['1:4']));
+    expect(
+      screen.getByRole('button', { name: /Добавить заметку/ }),
+    ).toBeInTheDocument();
+  });
+
+  it('offers no move for a whole-file note', async () => {
+    await withTargetNotes();
+    const item = screen.getByText('Про файл').closest('li') as HTMLElement;
+    expect(
+      within(item).queryByRole('button', { name: 'Перейти к привязке' }),
+    ).toBeNull();
+  });
+
+  it('moves a note to the lost group when a move finds the target gone', async () => {
+    const env = await withTargetNotes();
+    env.world['1:4'] = 'missing';
+    const item = screen.getByText('Про фрейм').closest('li') as HTMLElement;
+    await env.user.click(
+      within(item).getByRole('button', { name: 'Перейти к привязке' }),
+    );
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Фрейм не найден',
+    );
+    expect(
+      await screen.findByRole('heading', { name: /Без доступной привязки/ }),
+    ).toBeInTheDocument();
+  });
+
+  it('keeps a note in place when a move fails because of an API error', async () => {
+    const env = await withTargetNotes();
+    env.world['1:4'] = 'error';
+    const item = screen.getByText('Про фрейм').closest('li') as HTMLElement;
+    await env.user.click(
+      within(item).getByRole('button', { name: 'Перейти к привязке' }),
+    );
+    expect(await screen.findByRole('alert')).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: /Без доступной привязки/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('rebinds a lost note to another target explicitly, with the same id and text', async () => {
+    const env = await withTargetNotes();
+    env.world['1:4'] = 'missing';
+    await refresh(env.user);
+    await screen.findByRole('heading', { name: /Без доступной привязки/ });
+    await env.user.click(screen.getByRole('button', { name: 'Перепривязать' }));
+    // The editor opens on the old target with the choice of another one open.
+    expect(
+      screen.getByRole('group', { name: 'Выбор другой привязки' }),
+    ).toBeInTheDocument();
+    await env.user.click(screen.getByRole('button', { name: 'Закрыть выбор' }));
+    await env.user.selectOptions(
+      screen.getByLabelText('Привязка'),
+      'Страница · Mobile',
+    );
+    await env.user.click(screen.getByRole('button', { name: 'Сохранить' }));
+    await waitFor(() =>
+      expect(
+        screen.queryByRole('heading', { name: /Без доступной привязки/ }),
+      ).not.toBeInTheDocument(),
+    );
+    const stored = storedFrameNote(env.store);
+    expect(stored).toMatchObject({ id: 'f', text: 'Про фрейм', revision: 2 });
+    expect(stored.target).toMatchObject({ type: 'page', id: '0:1' });
+    expect(env.store.keys()).toHaveLength(3);
+  });
+
+  it('lets a lost note be edited and deleted', async () => {
+    const env = await withTargetNotes();
+    env.world['1:4'] = 'missing';
+    await refresh(env.user);
+    await screen.findByRole('heading', { name: /Без доступной привязки/ });
+    const item = screen.getByText('Про фрейм').closest('li') as HTMLElement;
+    await env.user.click(
+      within(item).getByRole('button', { name: 'Редактировать заметку' }),
+    );
+    const area = screen.getByLabelText('Текст');
+    await env.user.clear(area);
+    await env.user.type(area, 'Новый текст');
+    await env.user.click(screen.getByRole('button', { name: 'Сохранить' }));
+    expect(await screen.findByText('Новый текст')).toBeInTheDocument();
+    // The old target is gone, yet the text was saved and the target was not touched.
+    expect(storedFrameNote(env.store).target).toEqual(FRAME);
+    const again = screen.getByText('Новый текст').closest('li') as HTMLElement;
+    await env.user.click(
+      within(again).getByRole('button', { name: 'Удалить заметку' }),
+    );
+    await env.user.click(screen.getByRole('button', { name: 'Удалить' }));
+    await waitFor(() =>
+      expect(screen.queryByText('Новый текст')).not.toBeInTheDocument(),
+    );
+  });
+
+  it('follows the current page with the frames that are on it now', async () => {
+    const env = setup();
+    seed(env.service, 'f', 'Про фрейм', FRAME);
+    env.world['1:4'] = { name: 'Checkout', pageId: '0:2', pageName: 'Desktop' };
+    await ready();
+    await refresh(env.user);
+    await screen.findByText('Про фрейм');
+    await env.user.click(
+      screen.getByRole('button', { name: 'По текущему выбору' }),
+    );
+    // The current page is Mobile; the frame has moved to Desktop.
+    expect(screen.queryByText('Про фрейм')).not.toBeInTheDocument();
+    env.changeContext({
+      page: { id: '0:2', name: 'Desktop' },
+      selection: [],
+      selectionCount: 0,
+    });
+    expect(await screen.findByText('Про фрейм')).toBeInTheDocument();
   });
 });

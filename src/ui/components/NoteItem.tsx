@@ -1,7 +1,8 @@
 import type { Note } from '../../shared/model';
+import { resolutionKey } from '../../shared/group-notes';
 import { useNotes } from '../NotesProvider';
 import { targetLabel } from '../labels';
-import { CheckIcon, EditIcon, TrashIcon } from './Icons';
+import { CheckIcon, EditIcon, GoToIcon, TrashIcon } from './Icons';
 
 /** One note: optional task checkbox, text, where it is attached, actions. */
 export function NoteItem({
@@ -16,6 +17,15 @@ export function NoteItem({
   const busy = state.busyIds.includes(note.id);
   const confirming = state.confirmDeleteId === note.id;
   const done = note.status === 'done';
+  const { target } = note;
+  const resolution =
+    target.type === 'file'
+      ? undefined
+      : state.resolutions[resolutionKey(target.type, target.id)];
+  const missing = resolution?.state === 'missing';
+  const checkFailed = resolution?.state === 'error';
+  // A whole-file note has nowhere to go; a note without a target cannot be shown.
+  const canGo = target.type !== 'file' && !missing;
 
   return (
     <li className={`note${done ? ' note--done' : ''}`} aria-busy={busy}>
@@ -36,8 +46,33 @@ export function NoteItem({
       ) : null}
       <div className="note__body">
         <p className="note__text">{note.text}</p>
-        {showTarget ? (
-          <p className="note__meta">{targetLabel(note.target)}</p>
+        {showTarget || missing ? (
+          <p className="note__meta">
+            {targetLabel(note.target)}
+            {missing ? ' · цель не найдена, текст сохранён' : ''}
+          </p>
+        ) : null}
+        {checkFailed ? (
+          <p className="note__meta note__meta--warn">
+            Не удалось проверить привязку.{' '}
+            <button
+              type="button"
+              className="link"
+              onClick={() => actions.retryTarget(note)}
+            >
+              Проверить снова
+            </button>
+          </p>
+        ) : null}
+        {missing && !confirming ? (
+          <button
+            type="button"
+            className="btn btn--small"
+            disabled={busy}
+            onClick={() => actions.openEdit(note, { rebind: true })}
+          >
+            Перепривязать
+          </button>
         ) : null}
         {confirming ? (
           <div
@@ -66,6 +101,18 @@ export function NoteItem({
       </div>
       {confirming ? null : (
         <div className="note__actions">
+          {canGo ? (
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label="Перейти к привязке"
+              title="Перейти"
+              disabled={busy}
+              onClick={() => void actions.focusNote(note)}
+            >
+              <GoToIcon />
+            </button>
+          ) : null}
           <button
             type="button"
             className="icon-btn"
