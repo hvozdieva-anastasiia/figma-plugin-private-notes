@@ -74,8 +74,25 @@ export interface Note {
   revision: number;
 }
 
+/** A stored note of the current author that could not be used. Shown as a count. */
+export interface NoteProblem {
+  /** Note id from the key, or `null` when the key has no valid id. */
+  noteId: string | null;
+  reason:
+    | 'corrupt'
+    | 'future-schema'
+    | 'author-mismatch'
+    | 'key-mismatch'
+    | 'bad-key';
+  detail: string;
+}
+
 export type ErrorCode =
   | 'NO_USER'
+  | 'INVALID_MESSAGE'
+  | 'INTERNAL'
+  | 'TIMEOUT'
+  | 'TARGET_NOT_FOUND'
   | 'INVALID_COMMAND'
   | 'INVALID_ID'
   | 'INVALID_TEXT'

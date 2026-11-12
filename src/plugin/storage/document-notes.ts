@@ -12,6 +12,7 @@ import {
   type Failure,
   type Limits,
   type Note,
+  type NoteProblem,
   type Result,
 } from '../../shared/model';
 import {
@@ -61,17 +62,8 @@ export function noteKey(authorId: string, noteId: string): string {
 
 // ---------------------------------------------------------------- listing
 
-export interface ListProblem {
+export interface ListProblem extends NoteProblem {
   key: string;
-  /** Note id from the key, or `null` when the key has no valid id. */
-  noteId: string | null;
-  reason:
-    | 'corrupt'
-    | 'future-schema'
-    | 'author-mismatch'
-    | 'key-mismatch'
-    | 'bad-key';
-  detail: string;
 }
 
 export interface KeyCounts {
