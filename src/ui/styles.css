@@ -824,3 +824,35 @@ textarea {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+/* ---------------------------------------------------------------- hit targets and touch */
+
+/* In selection mode the whole row is the hit target of its checkbox. */
+.note {
+  position: relative;
+}
+
+.check--row::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  cursor: pointer;
+}
+
+.note .link,
+.note .btn {
+  position: relative;
+  z-index: 1;
+}
+
+button,
+select,
+input,
+textarea,
+summary {
+  touch-action: manipulation;
+}
+
+html {
+  -webkit-tap-highlight-color: transparent;
+}

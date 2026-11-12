@@ -144,7 +144,11 @@ export type Action =
   | { type: 'LOADING' }
   | { type: 'INIT_OK'; data: InitData }
   | { type: 'INIT_FAILED'; message: string }
-  | { type: 'NOTES_LOADED'; data: NotesData }
+  | {
+      type: 'NOTES_LOADED';
+      /** `context` is present when the data comes from Plugin Main. */
+      data: NotesData & { context?: DocumentContext };
+    }
   | { type: 'REFRESHING'; value: boolean }
   | { type: 'CONTEXT'; context: DocumentContext }
   | { type: 'SET_QUERY'; query: string }
@@ -216,6 +220,7 @@ export function reducer(state: State, action: Action): State {
         ...state,
         notes: action.data.notes,
         unreadable: action.data.problems.length,
+        context: action.data.context ?? state.context,
         refreshing: false,
         selection: {
           ...state.selection,

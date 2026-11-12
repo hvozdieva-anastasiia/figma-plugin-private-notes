@@ -142,6 +142,10 @@ export function setup(initial: DocumentContext = PAGE_CONTEXT) {
     focused,
     resized,
     user: userEvent.setup(),
+    /** Changes what Figma reports, without telling the window (a rename, for example). */
+    setContext(next: DocumentContext) {
+      context = next;
+    },
     changeContext(next: DocumentContext) {
       context = next;
       act(() => {

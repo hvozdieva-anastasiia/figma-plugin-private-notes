@@ -667,11 +667,11 @@ describe('bulk actions', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('ticks notes one by one, by clicking the text, and counts them', async () => {
+  it('ticks notes one by one and counts them', async () => {
     const env = await withMany();
     await env.user.click(screen.getByRole('button', { name: 'Select' }));
     await env.user.click(select('Alpha note'));
-    await env.user.click(screen.getByText('Delta note'));
+    await env.user.click(select('Delta note'));
     expect(screen.getByText('2 selected')).toBeInTheDocument();
     expect(select('Alpha note')).toHaveAttribute('aria-checked', 'true');
     await env.user.click(select('Alpha note'));

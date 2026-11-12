@@ -115,7 +115,15 @@ export function createCommandHandler(deps: HandlerDeps): CommandHandler {
         return respond(
           'REFRESH_NOTES',
           ids,
-          listed.ok ? { ok: true, value: notesData(listed.value) } : listed,
+          listed.ok
+            ? {
+                ok: true,
+                value: {
+                  ...notesData(listed.value),
+                  context: deps.getContext(),
+                },
+              }
+            : listed,
         );
       }
       case 'LIST_TARGETS':

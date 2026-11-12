@@ -35,8 +35,10 @@ export function NotesToolbar() {
           <span className="visually-hidden">Search notes</span>
           <input
             type="search"
+            name="search"
+            autoComplete="off"
             value={query}
-            placeholder="Search text and target"
+            placeholder="Search text and target…"
             onChange={(event) => actions.setQuery(event.target.value)}
           />
         </label>

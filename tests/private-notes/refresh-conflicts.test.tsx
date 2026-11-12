@@ -32,6 +32,19 @@ describe('refreshing when the window gets the focus back', () => {
     expect(await screen.findByText('Added elsewhere')).toBeInTheDocument();
   });
 
+  it('corrects the "now" line, which a rename or a page move changes without any selection event', async () => {
+    const env = await withNotes();
+    env.setContext({
+      page: { id: '0:1', name: 'Renamed page' },
+      selection: [],
+      selectionCount: 0,
+    });
+    focusWindow();
+    expect(
+      await screen.findByText(/Now: Page · Renamed page/),
+    ).toBeInTheDocument();
+  });
+
   it('drops a note that Undo removed from the document, and from the selection', async () => {
     const env = await withNotes();
     await env.user.click(screen.getByRole('button', { name: 'Select' }));

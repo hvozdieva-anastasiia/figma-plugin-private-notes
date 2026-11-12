@@ -44,7 +44,7 @@ export function NoteItem({
           role="checkbox"
           aria-checked={selected}
           aria-label={`Select note: ${note.text.slice(0, 40)}`}
-          className={`check${selected ? ' check--on' : ''}`}
+          className={`check check--row${selected ? ' check--on' : ''}`}
           onClick={() => actions.toggleSelected(note.id)}
         >
           {selected ? <CheckIcon /> : null}
@@ -63,14 +63,7 @@ export function NoteItem({
         </button>
       ) : null}
       <div className="note__body">
-        <p
-          className="note__text"
-          onClick={
-            selecting ? () => actions.toggleSelected(note.id) : undefined
-          }
-        >
-          {note.text}
-        </p>
+        <p className="note__text">{note.text}</p>
         {showTarget || missing ? (
           <p className="note__meta">
             {targetLabel(note.target)}

@@ -115,9 +115,11 @@ export function TargetPicker({
         <input
           id={searchId}
           type="search"
+          name="frame-search"
+          autoComplete="off"
           className="input"
           value={query}
-          placeholder="Frame name"
+          placeholder="Frame name…"
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>

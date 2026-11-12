@@ -177,7 +177,8 @@ export type CommandType = keyof CommandPayloads;
 
 export interface CommandResults {
   READY: InitData;
-  REFRESH_NOTES: NotesData;
+  /** The context is included so that a refresh also corrects the "now" line. */
+  REFRESH_NOTES: InitData;
   LIST_TARGETS: TargetsData;
   CREATE_NOTE: Note;
   UPDATE_NOTE: Note;

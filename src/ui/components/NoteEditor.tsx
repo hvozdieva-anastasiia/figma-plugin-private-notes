@@ -34,6 +34,21 @@ export function NoteEditor({ editor }: { editor: EditorDraft }) {
         event.preventDefault();
         if (canSave) void actions.saveEditor(editor);
       }}
+      onKeyDown={(event) => {
+        // Escape asks to leave (and asks before dropping typed text);
+        // Ctrl or Cmd with Enter saves.
+        if (event.key === 'Escape' && !editor.saving && !editor.conflict) {
+          event.preventDefault();
+          cancel();
+        } else if (
+          event.key === 'Enter' &&
+          (event.ctrlKey || event.metaKey) &&
+          canSave
+        ) {
+          event.preventDefault();
+          void actions.saveEditor(editor);
+        }
+      }}
     >
       <h2 className="editor__title">{creating ? 'New note' : 'Edit note'}</h2>
 
@@ -77,6 +92,8 @@ export function NoteEditor({ editor }: { editor: EditorDraft }) {
         <textarea
           id={textId}
           ref={textRef}
+          name="note-text"
+          autoComplete="off"
           className="textarea"
           rows={8}
           value={editor.text}
@@ -121,6 +138,7 @@ export function NoteEditor({ editor }: { editor: EditorDraft }) {
           <button
             type="submit"
             className="btn btn--primary"
+            title="Save (Ctrl+Enter)"
             disabled={!canSave}
           >
             {editor.saving ? 'Saving…' : 'Save'}
