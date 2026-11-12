@@ -1,35 +1,23 @@
-import { useMemo } from 'react';
-import { groupNotes, totalCount } from '../../shared/group-notes';
-import { selectNotes } from '../../shared/select-notes';
+import { totalCount } from '../../shared/group-notes';
 import { useNotes } from '../NotesProvider';
-import { currentSelection } from '../state';
+import { useVisibleNotes } from '../visible';
 import { NoteGroup } from './NoteGroup';
 import { NoteItem } from './NoteItem';
+
+const ids = (notes: { id: string }[]) => notes.map((note) => note.id);
 
 /** Filter first, then group, then count what is visible. Nothing here writes data. */
 export function NoteList() {
   const { state, actions } = useNotes();
-  const { notes, query, filter, scope, context, resolutions } = state;
+  const { grouped } = useVisibleNotes();
 
-  const grouped = useMemo(() => {
-    const known = new Map(Object.entries(resolutions));
-    const visible = selectNotes(notes, {
-      query,
-      filter,
-      scope,
-      current: currentSelection(context),
-      resolutions: known,
-    });
-    return groupNotes(visible, { resolutions: known });
-  }, [notes, query, filter, scope, context, resolutions]);
-
-  if (notes.length === 0) {
+  if (state.notes.length === 0) {
     return (
       <div className="empty">
-        <p className="empty__title">Заметок пока нет</p>
+        <p className="empty__title">No notes yet</p>
         <p className="empty__hint">
-          Нажмите «Добавить заметку»: её увидите только вы, а в файле она не
-          появится ни слоем, ни комментарием.
+          Press + to add a note. Only you can see it, and it does not appear in
+          the file as a layer or a comment.
         </p>
       </div>
     );
@@ -38,11 +26,11 @@ export function NoteList() {
   if (totalCount(grouped) === 0) {
     return (
       <div className="empty">
-        <p className="empty__title">Ничего не найдено</p>
+        <p className="empty__title">Nothing found</p>
         <p className="empty__hint">
-          {scope === 'current'
-            ? 'Для текущего выбора заметок нет. Выберите другой фрейм или покажите все заметки.'
-            : 'Измените поиск или фильтр.'}
+          {state.scope === 'current'
+            ? 'There are no notes for the current selection. Select another frame or show all notes.'
+            : 'Change the search or the filter.'}
         </p>
         <button
           type="button"
@@ -53,7 +41,7 @@ export function NoteList() {
             actions.setScope('all');
           }}
         >
-          Сбросить поиск и фильтры
+          Reset search and filters
         </button>
       </div>
     );
@@ -64,9 +52,10 @@ export function NoteList() {
       {grouped.file ? (
         <NoteGroup
           groupKey={grouped.file.key}
-          title="Весь файл"
+          title="Whole file"
           count={grouped.file.count}
           level="top"
+          noteIds={ids(grouped.file.notes)}
         >
           <ul className="notes">
             {grouped.file.notes.map((note) => (
@@ -79,9 +68,13 @@ export function NoteList() {
         <NoteGroup
           key={page.key}
           groupKey={page.key}
-          title={`Страница · ${page.label || '(без названия)'}`}
+          title={`Page · ${page.label || '(untitled)'}`}
           count={page.count}
           level="top"
+          noteIds={[
+            ...ids(page.notes),
+            ...page.frames.flatMap((frame) => ids(frame.notes)),
+          ]}
         >
           {page.notes.length ? (
             <ul className="notes">
@@ -94,9 +87,10 @@ export function NoteList() {
             <NoteGroup
               key={frame.key}
               groupKey={frame.key}
-              title={`Фрейм · ${frame.label || '(без названия)'}`}
+              title={`Frame · ${frame.label || '(untitled)'}`}
               count={frame.count}
               level="nested"
+              noteIds={ids(frame.notes)}
             >
               <ul className="notes">
                 {frame.notes.map((note) => (
@@ -110,9 +104,10 @@ export function NoteList() {
       {grouped.unresolved ? (
         <NoteGroup
           groupKey={grouped.unresolved.key}
-          title="Без доступной привязки"
+          title="No available target"
           count={grouped.unresolved.count}
           level="top"
+          noteIds={ids(grouped.unresolved.notes)}
         >
           <ul className="notes">
             {grouped.unresolved.notes.map((note) => (

@@ -75,7 +75,7 @@ export function matchesQuery(
 }
 
 /**
- * "По текущему выбору": the notes of one selected frame; without such a frame,
+ * "Current selection": the notes of one selected frame; without such a frame,
  * the notes of the current page and of the frames saved on it. Whole-file notes
  * belong to the general mode only.
  */

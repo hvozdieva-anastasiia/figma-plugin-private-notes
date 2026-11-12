@@ -1,6 +1,5 @@
 import { useId } from 'react';
 import type { NoteTarget } from '../../shared/model';
-import type { EditorDraft } from '../state';
 import { useNotes } from '../NotesProvider';
 import {
   FILE_TARGET,
@@ -16,11 +15,24 @@ function keyOf(target: NoteTarget): string {
 }
 
 /**
- * "Привязка": the selected frame, the current page, the whole file, or another
- * page or frame. It is the only control that changes `draftTarget`.
+ * "Target": the selected frame, the current page, the whole file, or another
+ * page or frame. It only reports the user's choice; whoever owns the draft
+ * decides what to do with it (an editor, or the bulk "move" panel).
  */
-export function TargetDropdown({ editor }: { editor: EditorDraft }) {
-  const { state, actions } = useNotes();
+export function TargetField({
+  label,
+  target,
+  disabled = false,
+  onChange,
+  onChooseOther,
+}: {
+  label: string;
+  target: NoteTarget;
+  disabled?: boolean;
+  onChange: (target: NoteTarget) => void;
+  onChooseOther: () => void;
+}) {
+  const { state } = useNotes();
   const selectId = useId();
   const { context } = state;
 
@@ -32,28 +44,28 @@ export function TargetDropdown({ editor }: { editor: EditorDraft }) {
   }
   choices.push(FILE_TARGET);
   // A target chosen earlier (another page, or the note's old target) stays selectable.
-  if (!choices.some((item) => keyOf(item) === keyOf(editor.draftTarget))) {
-    choices.unshift(editor.draftTarget);
+  if (!choices.some((item) => keyOf(item) === keyOf(target))) {
+    choices.unshift(target);
   }
 
   return (
     <div className="field">
       <label htmlFor={selectId} className="field__label">
-        Привязка
+        {label}
       </label>
       <select
         id={selectId}
         className="select"
-        value={keyOf(editor.draftTarget)}
-        disabled={editor.saving}
+        value={keyOf(target)}
+        disabled={disabled}
         onChange={(event) => {
           const value = event.target.value;
           if (value === OTHER) {
-            actions.setPickerOpen(true);
+            onChooseOther();
             return;
           }
           const next = choices.find((item) => keyOf(item) === value);
-          if (next) actions.setEditorTarget(next);
+          if (next) onChange(next);
         }}
       >
         {choices.map((item) => (
@@ -61,7 +73,7 @@ export function TargetDropdown({ editor }: { editor: EditorDraft }) {
             {targetLabel(item)}
           </option>
         ))}
-        <option value={OTHER}>Выбрать другую страницу или фрейм…</option>
+        <option value={OTHER}>Choose another page or frame…</option>
       </select>
     </div>
   );

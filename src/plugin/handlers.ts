@@ -9,6 +9,8 @@ import {
   readMessageIds,
   type AnyCommand,
   type AnyResponse,
+  type BulkData,
+  type BulkItemResult,
   type CommandResults,
   type CommandType,
   type DocumentContext,
@@ -18,6 +20,7 @@ import {
   type TargetRef,
   type TargetResolution,
   type TargetsData,
+  type WindowSize,
 } from '../shared/messages';
 import { fail } from '../shared/validation';
 import type { ListReport } from './storage/document-notes';
@@ -40,6 +43,8 @@ export interface HandlerDeps {
   resolveTargets(targets: TargetRef[]): Promise<TargetResolution[]>;
   /** Switches the page and, for a frame, selects it and brings it into view. */
   focusTarget(target: NoteTarget): Promise<Result<FocusData>>;
+  /** Resizes the plugin window; returns the size actually applied. */
+  resizeWindow(size: WindowSize): WindowSize;
 }
 
 function notesData(report: ListReport): NotesData {
@@ -51,6 +56,10 @@ function notesData(report: ListReport): NotesData {
       detail,
     })),
   };
+}
+
+function mapBulk(result: Result<BulkItemResult[]>): Result<BulkData> {
+  return result.ok ? { ok: true, value: { results: result.value } } : result;
 }
 
 function respond<C extends CommandType>(
@@ -164,11 +173,43 @@ export function createCommandHandler(deps: HandlerDeps): CommandHandler {
           return respond(
             'FOCUS_NOTE',
             ids,
-            fail('INVALID_TARGET', 'Заметка относится ко всему файлу'),
+            fail('INVALID_TARGET', 'This note belongs to the whole file'),
           );
         }
         return respond('FOCUS_NOTE', ids, await deps.focusTarget(target));
       }
+      case 'BULK_DELETE':
+        return respond(
+          'BULK_DELETE',
+          ids,
+          mapBulk(service.bulkRemove(command.payload.items)),
+        );
+      case 'BULK_SET_STATUS':
+        return respond(
+          'BULK_SET_STATUS',
+          ids,
+          mapBulk(
+            service.bulkSetStatus(
+              command.payload.items,
+              command.payload.status,
+            ),
+          ),
+        );
+      case 'BULK_REBIND': {
+        // The target is checked once for the whole batch.
+        const resolved = await deps.resolveTarget(command.payload.target);
+        if (!resolved.ok) return respond('BULK_REBIND', ids, resolved);
+        return respond(
+          'BULK_REBIND',
+          ids,
+          mapBulk(service.bulkRebind(command.payload.items, resolved.value)),
+        );
+      }
+      case 'RESIZE_WINDOW':
+        return respond('RESIZE_WINDOW', ids, {
+          ok: true,
+          value: deps.resizeWindow(command.payload),
+        });
       case 'SET_TASK_STATUS':
         return respond(
           'SET_TASK_STATUS',

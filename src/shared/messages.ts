@@ -5,6 +5,7 @@
 // chosen by one UI load and filters out answers addressed to an older window.
 
 import type {
+  ErrorCode,
   Note,
   NoteKind,
   NoteProblem,
@@ -50,7 +51,7 @@ export interface InitData extends NotesData {
   context: DocumentContext;
 }
 
-/** A page or a frame the user may choose in "Привязка". */
+/** A page or a frame the user may choose in "Target". */
 export interface TargetOption {
   type: 'page' | 'frame';
   id: string;
@@ -98,6 +99,51 @@ export interface FocusData {
 /** Most targets one REFRESH_TARGETS command may carry. */
 export const MAX_TARGET_REFS = 25;
 
+/** One note of a bulk command, with the revision the window last saw. */
+export interface BulkItem {
+  id: string;
+  expectedRevision: number;
+}
+
+/**
+ * Outcome of one note in a bulk command. Notes are changed one by one, so a
+ * batch can succeed in part: every note gets its own answer.
+ */
+export type BulkItemResult =
+  | {
+      id: string;
+      ok: true;
+      /** The changed note, or `null` when the note was deleted. */
+      note: Note | null;
+    }
+  | { id: string; ok: false; code: ErrorCode; message: string };
+
+export interface BulkData {
+  results: BulkItemResult[];
+}
+
+/** Most notes one bulk command may carry: the per-author limit. */
+export const MAX_BULK_ITEMS = 500;
+
+export interface WindowSize {
+  width: number;
+  height: number;
+}
+
+export const MIN_WINDOW: WindowSize = { width: 320, height: 360 };
+export const MAX_WINDOW: WindowSize = { width: 1000, height: 1200 };
+export const DEFAULT_WINDOW: WindowSize = { width: 400, height: 640 };
+
+/** Keeps a requested window size inside the allowed range; whole pixels. */
+export function clampWindow(width: number, height: number): WindowSize {
+  const fit = (value: number, min: number, max: number) =>
+    Math.min(max, Math.max(min, Math.round(value)));
+  return {
+    width: fit(width, MIN_WINDOW.width, MAX_WINDOW.width),
+    height: fit(height, MIN_WINDOW.height, MAX_WINDOW.height),
+  };
+}
+
 // ---------------------------------------------------------------- commands
 
 export interface CommandPayloads {
@@ -121,6 +167,10 @@ export interface CommandPayloads {
   REBIND_NOTE: { id: string; expectedRevision: number; target: NoteTarget };
   REFRESH_TARGETS: { targets: TargetRef[] };
   FOCUS_NOTE: { id: string };
+  BULK_DELETE: { items: BulkItem[] };
+  BULK_SET_STATUS: { items: BulkItem[]; status: TaskStatus };
+  BULK_REBIND: { items: BulkItem[]; target: NoteTarget };
+  RESIZE_WINDOW: WindowSize;
 }
 
 export type CommandType = keyof CommandPayloads;
@@ -136,6 +186,10 @@ export interface CommandResults {
   REBIND_NOTE: Note;
   REFRESH_TARGETS: { resolutions: TargetResolution[] };
   FOCUS_NOTE: FocusData;
+  BULK_DELETE: BulkData;
+  BULK_SET_STATUS: BulkData;
+  BULK_REBIND: BulkData;
+  RESIZE_WINDOW: WindowSize;
 }
 
 export interface CommandMessage<C extends CommandType = CommandType> {
@@ -183,6 +237,10 @@ const COMMAND_TYPES: readonly string[] = [
   'REBIND_NOTE',
   'REFRESH_TARGETS',
   'FOCUS_NOTE',
+  'BULK_DELETE',
+  'BULK_SET_STATUS',
+  'BULK_REBIND',
+  'RESIZE_WINDOW',
 ];
 
 export function isCommandType(value: unknown): value is CommandType {
@@ -208,6 +266,31 @@ export function readMessageIds(raw: unknown): MessageIds | null {
 }
 
 const MAX_QUERY_LENGTH = 200;
+
+function parseBulkItems(value: unknown): Result<BulkItem[]> {
+  if (
+    !Array.isArray(value) ||
+    value.length === 0 ||
+    value.length > MAX_BULK_ITEMS
+  ) {
+    return fail('INVALID_MESSAGE', 'bad items');
+  }
+  const items: BulkItem[] = [];
+  const seen = new Set<string>();
+  for (const item of value as unknown[]) {
+    if (
+      !isRecord(item) ||
+      typeof item.id !== 'string' ||
+      typeof item.expectedRevision !== 'number' ||
+      seen.has(item.id)
+    ) {
+      return fail('INVALID_MESSAGE', 'bad item');
+    }
+    seen.add(item.id);
+    items.push({ id: item.id, expectedRevision: item.expectedRevision });
+  }
+  return { ok: true, value: items };
+}
 
 function parsePayload(
   type: CommandType,
@@ -251,6 +334,39 @@ function parsePayload(
     case 'FOCUS_NOTE': {
       if (typeof payload.id !== 'string') return invalid('bad id');
       return { ok: true, value: { id: payload.id } };
+    }
+    case 'BULK_DELETE': {
+      const items = parseBulkItems(payload.items);
+      return items.ok ? { ok: true, value: { items: items.value } } : items;
+    }
+    case 'BULK_SET_STATUS': {
+      const items = parseBulkItems(payload.items);
+      if (!items.ok) return items;
+      if (!isTaskStatus(payload.status)) return invalid('bad status');
+      return {
+        ok: true,
+        value: { items: items.value, status: payload.status },
+      };
+    }
+    case 'BULK_REBIND': {
+      const items = parseBulkItems(payload.items);
+      if (!items.ok) return items;
+      const checked = validateTarget(payload.target);
+      if (!checked.ok) return checked;
+      return { ok: true, value: { items: items.value, target: checked.value } };
+    }
+    case 'RESIZE_WINDOW': {
+      const { width, height } = payload;
+      if (
+        typeof width !== 'number' ||
+        typeof height !== 'number' ||
+        !Number.isFinite(width) ||
+        !Number.isFinite(height)
+      ) {
+        return invalid('bad size');
+      }
+      // A size is a request: it is clamped, not refused.
+      return { ok: true, value: clampWindow(width, height) };
     }
     case 'CREATE_NOTE': {
       const { id, kind, text, target } = payload;

@@ -26,7 +26,7 @@ export async function resolveTarget(
   const node = await figmaApi.getNodeByIdAsync(target.id);
   if (target.type === 'page') {
     if (!node || node.type !== 'PAGE') {
-      return fail('TARGET_NOT_FOUND', 'Страница не найдена');
+      return fail('TARGET_NOT_FOUND', 'Page not found');
     }
     return {
       ok: true,
@@ -40,10 +40,11 @@ export async function resolveTarget(
     };
   }
   if (!node || node.type !== 'FRAME') {
-    return fail('TARGET_NOT_FOUND', 'Фрейм не найден');
+    return fail('TARGET_NOT_FOUND', 'Frame not found');
   }
   const page = pageOf(node);
-  if (!page) return fail('TARGET_NOT_FOUND', 'Страница фрейма не найдена');
+  if (!page)
+    return fail('TARGET_NOT_FOUND', 'The page of the frame was not found');
   return {
     ok: true,
     value: {
@@ -88,7 +89,7 @@ export async function listTargets(
   }
   const page = await figmaApi.getNodeByIdAsync(request.pageId);
   if (!page || page.type !== 'PAGE') {
-    return fail('TARGET_NOT_FOUND', 'Страница не найдена');
+    return fail('TARGET_NOT_FOUND', 'Page not found');
   }
   await page.loadAsync();
   const all = page.children

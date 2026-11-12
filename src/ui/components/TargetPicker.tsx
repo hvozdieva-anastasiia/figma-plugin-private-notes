@@ -1,4 +1,5 @@
 import { useEffect, useId, useState } from 'react';
+import type { NoteTarget } from '../../shared/model';
 import type { TargetOption } from '../../shared/messages';
 import { useNotes } from '../NotesProvider';
 
@@ -12,8 +13,14 @@ type Listing =
  * chosen page are requested only now. Equal names are told apart by the page
  * and the node id shown next to them.
  */
-export function TargetPicker() {
-  const { state, actions, meta } = useNotes();
+export function TargetPicker({
+  onPick,
+  onClose,
+}: {
+  onPick: (target: NoteTarget) => void;
+  onClose: () => void;
+}) {
+  const { state, meta } = useNotes();
   const { bridge } = meta;
   const pageSelectId = useId();
   const searchId = useId();
@@ -57,7 +64,7 @@ export function TargetPicker() {
   const pageOption = pageList.find((item) => item.id === pageId);
 
   const choose = (option: TargetOption) =>
-    actions.setEditorTarget({
+    onPick({
       type: option.type,
       id: option.id,
       pageId: option.pageId,
@@ -66,10 +73,10 @@ export function TargetPicker() {
     });
 
   return (
-    <div className="picker" role="group" aria-label="Выбор другой привязки">
+    <div className="picker" role="group" aria-label="Choose another target">
       <div className="field">
         <label htmlFor={pageSelectId} className="field__label">
-          Страница
+          Page
         </label>
         <select
           id={pageSelectId}
@@ -89,7 +96,7 @@ export function TargetPicker() {
       </div>
       {pages.state === 'error' ? (
         <p className="error" role="alert">
-          Не удалось загрузить страницы. Закройте выбор и повторите.
+          Could not load the pages. Close this and try again.
         </p>
       ) : null}
       {pageOption ? (
@@ -98,28 +105,28 @@ export function TargetPicker() {
           className="btn"
           onClick={() => choose(pageOption)}
         >
-          Привязать к странице «{pageOption.name}»
+          Use the page “{pageOption.name}”
         </button>
       ) : null}
       <div className="field">
         <label htmlFor={searchId} className="field__label">
-          Фрейм на этой странице
+          Frame on this page
         </label>
         <input
           id={searchId}
           type="search"
           className="input"
           value={query}
-          placeholder="Название фрейма"
+          placeholder="Frame name"
           onChange={(event) => setQuery(event.target.value)}
         />
       </div>
       {frames.state === 'error' ? (
         <p className="error" role="alert">
-          Не удалось загрузить фреймы. Повторите поиск.
+          Could not load the frames. Try the search again.
         </p>
       ) : frames.state === 'loading' ? (
-        <p className="picker__none">Загружаю…</p>
+        <p className="picker__none">Loading…</p>
       ) : (
         <ul className="picker__list">
           {frames.options.map((frame) => (
@@ -129,29 +136,25 @@ export function TargetPicker() {
                 className="picker__item"
                 onClick={() => choose(frame)}
               >
-                <span>{frame.name || '(без названия)'}</span>
+                <span>{frame.name || '(untitled)'}</span>
                 <span className="picker__id">{frame.id}</span>
               </button>
             </li>
           ))}
           {frames.options.length === 0 ? (
             <li className="picker__none">
-              На этой странице нет подходящих фреймов верхнего уровня
+              No matching top-level frames on this page
             </li>
           ) : null}
           {frames.truncated ? (
             <li className="picker__none">
-              Показаны первые 100. Уточните поиск.
+              First 100 shown. Narrow the search.
             </li>
           ) : null}
         </ul>
       )}
-      <button
-        type="button"
-        className="btn"
-        onClick={() => actions.setPickerOpen(false)}
-      >
-        Закрыть выбор
+      <button type="button" className="btn" onClick={onClose}>
+        Close
       </button>
     </div>
   );

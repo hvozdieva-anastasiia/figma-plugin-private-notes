@@ -1,17 +1,24 @@
-import { currentSelection } from '../state';
+import type { KindFilter } from '../../shared/select-notes';
 import { useNotes } from '../NotesProvider';
 import { targetLabel } from '../labels';
-import { pageTargetFromContext, frameTargetFromContext } from '../state';
-import type { KindFilter } from '../../shared/select-notes';
+import {
+  currentSelection,
+  frameTargetFromContext,
+  pageTargetFromContext,
+} from '../state';
 import { PlusIcon, RefreshIcon, SearchIcon } from './Icons';
 
 const FILTERS: { value: KindFilter; label: string }[] = [
-  { value: 'all', label: 'Все' },
-  { value: 'notes', label: 'Заметки' },
-  { value: 'open', label: 'Открытые' },
-  { value: 'done', label: 'Выполненные' },
+  { value: 'all', label: 'All' },
+  { value: 'notes', label: 'Notes' },
+  { value: 'open', label: 'Open' },
+  { value: 'done', label: 'Done' },
 ];
 
+/**
+ * Top of the window. First line, left to right: search, a small "add note"
+ * button, the refresh button. Below: the kind filter and the scope.
+ */
 export function NotesToolbar() {
   const { state, actions } = useNotes();
   const { query, filter, scope, context, refreshing } = state;
@@ -23,19 +30,30 @@ export function NotesToolbar() {
   return (
     <div className="toolbar">
       <div className="toolbar__row">
+        <label className="search">
+          <SearchIcon />
+          <span className="visually-hidden">Search notes</span>
+          <input
+            type="search"
+            value={query}
+            placeholder="Search text and target"
+            onChange={(event) => actions.setQuery(event.target.value)}
+          />
+        </label>
         <button
           type="button"
-          className="btn btn--primary"
+          className="icon-btn icon-btn--primary"
+          aria-label="Add note"
+          title="Add note"
           onClick={actions.openCreate}
         >
           <PlusIcon />
-          Добавить заметку
         </button>
         <button
           type="button"
           className="icon-btn"
-          aria-label="Обновить список"
-          title="Обновить список"
+          aria-label="Refresh the list"
+          title="Refresh the list"
           disabled={refreshing}
           onClick={() => void actions.refresh()}
         >
@@ -45,18 +63,7 @@ export function NotesToolbar() {
         </button>
       </div>
 
-      <label className="search">
-        <SearchIcon />
-        <span className="visually-hidden">Поиск по заметкам</span>
-        <input
-          type="search"
-          value={query}
-          placeholder="Поиск по тексту и привязке"
-          onChange={(event) => actions.setQuery(event.target.value)}
-        />
-      </label>
-
-      <div className="segmented" role="group" aria-label="Тип записей">
+      <div className="segmented" role="group" aria-label="Kind">
         {FILTERS.map((item) => (
           <button
             key={item.value}
@@ -70,30 +77,48 @@ export function NotesToolbar() {
       </div>
 
       <div className="scope">
-        <div
-          className="segmented"
-          role="group"
-          aria-label="Какие заметки показывать"
-        >
+        <div className="scope__row">
+          <div
+            className="segmented"
+            role="group"
+            aria-label="Which notes to show"
+          >
+            <button
+              type="button"
+              aria-pressed={scope === 'all'}
+              onClick={() => actions.setScope('all')}
+            >
+              All notes
+            </button>
+            <button
+              type="button"
+              aria-pressed={scope === 'current'}
+              onClick={() => actions.setScope('current')}
+            >
+              Current selection
+            </button>
+          </div>
           <button
             type="button"
-            aria-pressed={state.scope === 'all'}
-            onClick={() => actions.setScope('all')}
+            className="btn"
+            aria-pressed={state.selection.active}
+            aria-label={
+              state.selection.active ? 'Exit selection mode' : undefined
+            }
+            title={
+              state.selection.active
+                ? 'Exit selection mode'
+                : 'Select several notes for bulk actions'
+            }
+            onClick={() => actions.setSelectMode(!state.selection.active)}
           >
-            Все заметки
-          </button>
-          <button
-            type="button"
-            aria-pressed={scope === 'current'}
-            onClick={() => actions.setScope('current')}
-          >
-            По текущему выбору
+            {state.selection.active ? 'Exit' : 'Select'}
           </button>
         </div>
         {currentTarget ? (
           <p className="scope__hint">
-            Сейчас: {targetLabel(currentTarget)}
-            {selection.frameId === null ? ' (фреймы страницы тоже)' : ''}
+            Now: {targetLabel(currentTarget)}
+            {selection.frameId === null ? ' (and its frames)' : ''}
           </p>
         ) : null}
       </div>

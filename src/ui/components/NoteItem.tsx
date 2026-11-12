@@ -4,19 +4,25 @@ import { useNotes } from '../NotesProvider';
 import { targetLabel } from '../labels';
 import { CheckIcon, EditIcon, GoToIcon, TrashIcon } from './Icons';
 
-/** One note: optional task checkbox, text, where it is attached, actions. */
+/**
+ * One note. Normally: optional task checkbox, text, where it is attached and
+ * its actions. In selection mode the task checkbox and the actions give way to
+ * a selection checkbox, and a click on the note ticks it.
+ */
 export function NoteItem({
   note,
   showTarget,
 }: {
   note: Note;
-  /** The group heading already names the target; the whole-file group does not need it twice. */
+  /** The group heading already names the target; only the lost group repeats it. */
   showTarget: boolean;
 }) {
   const { state, actions } = useNotes();
   const busy = state.busyIds.includes(note.id);
   const confirming = state.confirmDeleteId === note.id;
   const done = note.status === 'done';
+  const selecting = state.selection.active;
+  const selected = state.selection.ids.includes(note.id);
   const { target } = note;
   const resolution =
     target.type === 'file'
@@ -28,16 +34,28 @@ export function NoteItem({
   const canGo = target.type !== 'file' && !missing;
 
   return (
-    <li className={`note${done ? ' note--done' : ''}`} aria-busy={busy}>
-      {note.kind === 'task' ? (
+    <li
+      className={`note${done ? ' note--done' : ''}${selected ? ' note--selected' : ''}`}
+      aria-busy={busy}
+    >
+      {selecting ? (
+        <button
+          type="button"
+          role="checkbox"
+          aria-checked={selected}
+          aria-label={`Select note: ${note.text.slice(0, 40)}`}
+          className={`check${selected ? ' check--on' : ''}`}
+          onClick={() => actions.toggleSelected(note.id)}
+        >
+          {selected ? <CheckIcon /> : null}
+        </button>
+      ) : note.kind === 'task' ? (
         <button
           type="button"
           role="checkbox"
           aria-checked={done}
-          aria-label={
-            done ? 'Вернуть задачу в открытые' : 'Отметить задачу выполненной'
-          }
-          className="check"
+          aria-label={done ? 'Reopen the task' : 'Mark the task done'}
+          className={`check${done ? ' check--on' : ''}`}
           disabled={busy}
           onClick={() => void actions.toggleStatus(note)}
         >
@@ -45,68 +63,71 @@ export function NoteItem({
         </button>
       ) : null}
       <div className="note__body">
-        <p className="note__text">{note.text}</p>
+        <p
+          className="note__text"
+          onClick={
+            selecting ? () => actions.toggleSelected(note.id) : undefined
+          }
+        >
+          {note.text}
+        </p>
         {showTarget || missing ? (
           <p className="note__meta">
             {targetLabel(note.target)}
-            {missing ? ' · цель не найдена, текст сохранён' : ''}
+            {missing ? ' · target not found, text kept' : ''}
           </p>
         ) : null}
         {checkFailed ? (
           <p className="note__meta note__meta--warn">
-            Не удалось проверить привязку.{' '}
+            Could not check the target.{' '}
             <button
               type="button"
               className="link"
               onClick={() => actions.retryTarget(note)}
             >
-              Проверить снова
+              Check again
             </button>
           </p>
         ) : null}
-        {missing && !confirming ? (
+        {missing && !confirming && !selecting ? (
           <button
             type="button"
             className="btn btn--small"
             disabled={busy}
             onClick={() => actions.openEdit(note, { rebind: true })}
           >
-            Перепривязать
+            Rebind
           </button>
         ) : null}
         {confirming ? (
-          <div
-            className="confirm"
-            role="group"
-            aria-label="Подтверждение удаления"
-          >
-            <span>Удалить эту заметку насовсем?</span>
+          <div className="confirm" role="group" aria-label="Confirm deletion">
+            <span>Delete this note for good?</span>
             <button
               type="button"
               className="btn btn--danger"
               disabled={busy}
               onClick={() => void actions.confirmDelete(note)}
             >
-              Удалить
+              Delete
             </button>
             <button
               type="button"
               className="btn"
               onClick={() => actions.askDelete(null)}
             >
-              Отмена
+              Cancel
             </button>
           </div>
         ) : null}
       </div>
-      {confirming ? null : (
+      {confirming || selecting ? null : (
         <div className="note__actions">
           {canGo ? (
             <button
               type="button"
               className="icon-btn"
-              aria-label="Перейти к привязке"
-              title="Перейти"
+              aria-label="Go to the target"
+              title="Go to the target"
               disabled={busy}
               onClick={() => void actions.focusNote(note)}
             >
@@ -116,8 +137,8 @@ export function NoteItem({
           <button
             type="button"
             className="icon-btn"
-            aria-label="Редактировать заметку"
-            title="Редактировать"
+            aria-label="Edit note"
+            title="Edit"
             disabled={busy}
             onClick={() => actions.openEdit(note)}
           >
@@ -126,8 +147,8 @@ export function NoteItem({
           <button
             type="button"
             className="icon-btn"
-            aria-label="Удалить заметку"
-            title="Удалить"
+            aria-label="Delete note"
+            title="Delete"
             disabled={busy}
             onClick={() => actions.askDelete(note.id)}
           >

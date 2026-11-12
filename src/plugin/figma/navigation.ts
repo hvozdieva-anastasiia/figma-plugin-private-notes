@@ -66,13 +66,13 @@ export async function focusTarget(
   target: NoteTarget,
 ): Promise<Result<FocusData>> {
   if (target.type === 'file') {
-    return fail('INVALID_TARGET', 'Заметка относится ко всему файлу');
+    return fail('INVALID_TARGET', 'This note belongs to the whole file');
   }
   const node = await figmaApi.getNodeByIdAsync(target.id);
 
   if (target.type === 'page') {
     if (!node || node.type !== 'PAGE') {
-      return fail('TARGET_NOT_FOUND', 'Страница не найдена');
+      return fail('TARGET_NOT_FOUND', 'Page not found');
     }
     const pageSwitched = figmaApi.currentPage.id !== node.id;
     if (pageSwitched) await figmaApi.setCurrentPageAsync(node);
@@ -80,17 +80,18 @@ export async function focusTarget(
   }
 
   if (!node || node.type !== 'FRAME') {
-    return fail('TARGET_NOT_FOUND', 'Фрейм не найден');
+    return fail('TARGET_NOT_FOUND', 'Frame not found');
   }
   const page = pageOf(node);
-  if (!page) return fail('TARGET_NOT_FOUND', 'Страница фрейма не найдена');
+  if (!page)
+    return fail('TARGET_NOT_FOUND', 'The page of the frame was not found');
   const pageSwitched = figmaApi.currentPage.id !== page.id;
   if (pageSwitched) await figmaApi.setCurrentPageAsync(page);
   try {
     figmaApi.currentPage.selection = [node];
     figmaApi.viewport.scrollAndZoomIntoView([node]);
   } catch {
-    return fail('NAVIGATION_FAILED', 'Не удалось показать фрейм');
+    return fail('NAVIGATION_FAILED', 'Could not show the frame');
   }
   return { ok: true, value: { outcome: 'frame', pageSwitched } };
 }

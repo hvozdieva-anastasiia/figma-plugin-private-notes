@@ -116,7 +116,7 @@ textarea {
   min-height: 0;
   overflow-y: auto;
   margin: 0 -12px;
-  padding: 0 12px 56px;
+  padding: 0 12px 12px;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
@@ -273,7 +273,7 @@ textarea {
   gap: var(--gap);
 }
 
-.toolbar__row .btn--primary {
+.toolbar__row .search {
   flex: 1;
 }
 
@@ -458,7 +458,7 @@ textarea {
 
 .note__actions {
   display: flex;
-  opacity: 0;
+  opacity: 1;
 }
 
 .note:hover .note__actions,
@@ -635,11 +635,9 @@ textarea {
 }
 
 .notice-slot {
-  position: absolute;
-  left: 12px;
-  right: 12px;
-  bottom: 12px;
-  pointer-events: none;
+  /* In the flow, above the bulk bar, so that it never hides an action. */
+  flex: none;
+  margin: 0 0 8px;
 }
 
 .notice {
@@ -668,4 +666,133 @@ textarea {
   color: inherit;
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* ---------------------------------------------------------------- toolbar line */
+
+.toolbar__row .search {
+  flex: 1;
+  min-width: 0;
+}
+
+.icon-btn--primary {
+  background: var(--brand);
+  color: var(--on-brand);
+}
+
+.icon-btn--primary:hover:not(:disabled) {
+  background: var(--brand-hover);
+  color: var(--on-brand);
+}
+
+.scope__row {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+}
+
+.scope__row .segmented {
+  flex: 1;
+}
+
+.btn[aria-pressed='true'] {
+  background: var(--bg-secondary);
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- selection */
+
+.check--on {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: var(--on-brand);
+}
+
+.check__dash {
+  width: 8px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--on-brand);
+}
+
+.group__title {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.group__title .check {
+  margin: 0 0 0 4px;
+}
+
+.note--selected {
+  background: color-mix(in srgb, var(--brand) 14%, transparent);
+}
+
+.note--selected:hover {
+  background: color-mix(in srgb, var(--brand) 20%, transparent);
+}
+
+.bulk {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0 -12px;
+  padding: 8px 12px 28px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.bulk__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bulk__count {
+  margin: 0;
+  font-weight: 600;
+}
+
+.bulk__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.bulk__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.bulk__ask {
+  margin: 0;
+}
+
+.btn--danger-text {
+  color: var(--danger);
+}
+
+/* ---------------------------------------------------------------- resize grip */
+
+.grip {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  width: 20px;
+  height: 20px;
+  padding: 2px;
+  border: 0;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: nwse-resize;
+  touch-action: none;
+}
+
+.grip:hover {
+  color: var(--text);
 }

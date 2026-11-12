@@ -104,7 +104,7 @@ export function createBridge(
       return new Promise((resolve) => {
         const timer = setTimeout(() => {
           pending.delete(requestId);
-          resolve(fail('TIMEOUT', 'Плагин не ответил вовремя'));
+          resolve(fail('TIMEOUT', 'The plugin did not answer in time'));
         }, timeoutMs);
         pending.set(requestId, {
           command: type,

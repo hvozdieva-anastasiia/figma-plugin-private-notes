@@ -4,8 +4,10 @@ import {
   PROTOCOL_VERSION,
   parseCommand,
   readMessageIds,
+  clampWindow,
   type DocumentContext,
   type TargetResolution,
+  type WindowSize,
 } from '../../src/shared/messages';
 import { createCommandHandler } from '../../src/plugin/handlers';
 import { createNotesService } from '../../src/plugin/notes-service';
@@ -117,6 +119,7 @@ describe('command handler', () => {
   let resolved: string[];
   let asked: string[][];
   let focused: string[];
+  let resizedTo: WindowSize[];
   let broken: boolean;
 
   function handler() {
@@ -139,7 +142,7 @@ describe('command handler', () => {
             : {
                 ok: false,
                 code: 'TARGET_NOT_FOUND',
-                message: 'Фрейм не найден',
+                message: 'Frame not found',
               },
         );
       },
@@ -159,6 +162,10 @@ describe('command handler', () => {
             truncated: false,
           },
         }),
+      resizeWindow: (size) => {
+        resizedTo.push(size);
+        return clampWindow(size.width, size.height);
+      },
       resolveTargets: (targets) => {
         if (broken) return Promise.reject(new Error('API down'));
         asked.push(targets.map((t) => t.id));
@@ -197,7 +204,7 @@ describe('command handler', () => {
             : {
                 ok: false,
                 code: 'TARGET_NOT_FOUND',
-                message: 'Фрейм не найден',
+                message: 'Frame not found',
               },
         );
       },
@@ -216,6 +223,7 @@ describe('command handler', () => {
     resolved = [];
     asked = [];
     focused = [];
+    resizedTo = [];
     broken = false;
   });
 
@@ -513,6 +521,184 @@ describe('command handler', () => {
     expect((await send('FOCUS_NOTE', { id: 'a' })).result).toMatchObject({
       ok: false,
       code: 'INTERNAL',
+    });
+  });
+
+  describe('bulk commands and window size', () => {
+    const create = (id: string, kind: 'note' | 'task', target: NoteTarget) =>
+      send('CREATE_NOTE', { id, kind, text: `text ${id}`, target });
+
+    it('deletes many notes and gives every note its own answer', async () => {
+      await create('a', 'note', FILE);
+      await create('b', 'note', FILE);
+      await create('c', 'note', FILE);
+      // "b" was changed after the window read it: its revision is stale.
+      await send('UPDATE_NOTE', {
+        id: 'b',
+        expectedRevision: 1,
+        text: 'newer',
+      });
+      const response = await send('BULK_DELETE', {
+        items: [
+          { id: 'a', expectedRevision: 1 },
+          { id: 'b', expectedRevision: 1 },
+          { id: 'c', expectedRevision: 1 },
+          { id: 'ghost', expectedRevision: 1 },
+        ],
+      });
+      if (response.command !== 'BULK_DELETE' || !response.result.ok) {
+        throw new Error('bad');
+      }
+      expect(
+        response.result.value.results.map((r) =>
+          r.ok ? `${r.id}:deleted` : `${r.id}:${r.code}`,
+        ),
+      ).toEqual([
+        'a:deleted',
+        'b:REVISION_CONFLICT',
+        'c:deleted',
+        'ghost:NOT_FOUND',
+      ]);
+      expect(store.keys()).toEqual([noteKey('42', 'b')]);
+    });
+
+    it('marks tasks done and refuses the notes among them one by one', async () => {
+      await create('t', 'task', FILE);
+      await create('n', 'note', FILE);
+      const response = await send('BULK_SET_STATUS', {
+        status: 'done',
+        items: [
+          { id: 't', expectedRevision: 1 },
+          { id: 'n', expectedRevision: 1 },
+        ],
+      });
+      if (response.command !== 'BULK_SET_STATUS' || !response.result.ok) {
+        throw new Error('bad');
+      }
+      const [task, note] = response.result.value.results;
+      expect(task).toMatchObject({
+        ok: true,
+        note: { status: 'done', revision: 2 },
+      });
+      expect(note).toMatchObject({ ok: false, code: 'INVALID_STATUS' });
+    });
+
+    it('moves many notes after checking the target once, keeping ids and text', async () => {
+      await create('a', 'note', FILE);
+      await create('b', 'task', page('0:1', 'Mobile'));
+      resolved.length = 0;
+      const response = await send('BULK_REBIND', {
+        target: frame('1:4', 'x', '0:1', 'x'),
+        items: [
+          { id: 'a', expectedRevision: 1 },
+          { id: 'b', expectedRevision: 1 },
+        ],
+      });
+      if (response.command !== 'BULK_REBIND' || !response.result.ok) {
+        throw new Error('bad');
+      }
+      expect(resolved).toEqual(['1:4']);
+      for (const item of response.result.value.results) {
+        expect(item).toMatchObject({
+          ok: true,
+          note: { revision: 2, target: known['1:4'] },
+        });
+      }
+      expect(store.keys()).toHaveLength(2);
+    });
+
+    it('moves nothing when the target does not exist', async () => {
+      await create('a', 'note', FILE);
+      const before = store.writes.length;
+      const response = await send('BULK_REBIND', {
+        target: frame('9:9', 'x', '0:1', 'x'),
+        items: [{ id: 'a', expectedRevision: 1 }],
+      });
+      expect(response.result).toMatchObject({
+        ok: false,
+        code: 'TARGET_NOT_FOUND',
+      });
+      expect(store.writes.length).toBe(before);
+    });
+
+    it('cannot reach the notes of another author', async () => {
+      store.seed(
+        noteKey('7', 'theirs'),
+        JSON.stringify({
+          schemaVersion: 1,
+          id: 'theirs',
+          authorId: '7',
+          kind: 'note',
+          text: 'private',
+          status: null,
+          target: FILE,
+          createdAt: 1,
+          updatedAt: 1,
+          revision: 1,
+        }),
+      );
+      const response = await send('BULK_DELETE', {
+        items: [{ id: 'theirs', expectedRevision: 1 }],
+      });
+      expect(response.result).toMatchObject({
+        ok: true,
+        value: { results: [{ id: 'theirs', ok: false, code: 'NOT_FOUND' }] },
+      });
+      expect(store.writes).toEqual([]);
+    });
+
+    it.each([
+      ['no items', { items: [] }],
+      [
+        'repeated note',
+        {
+          items: [
+            { id: 'a', expectedRevision: 1 },
+            { id: 'a', expectedRevision: 1 },
+          ],
+        },
+      ],
+      ['bad revision', { items: [{ id: 'a', expectedRevision: '1' }] }],
+      [
+        'too many',
+        {
+          items: Array.from({ length: 501 }, (_, i) => ({
+            id: `n${i}`,
+            expectedRevision: 1,
+          })),
+        },
+      ],
+    ])('refuses a bulk command with %s', async (_name, payload) => {
+      expect((await send('BULK_DELETE', payload)).result).toMatchObject({
+        ok: false,
+        code: 'INVALID_MESSAGE',
+      });
+      expect(store.writes).toEqual([]);
+    });
+
+    it('applies the window size the UI asks for, clamped to the allowed range', async () => {
+      const ok = await send('RESIZE_WINDOW', { width: 500, height: 700 });
+      expect(ok.result).toEqual({
+        ok: true,
+        value: { width: 500, height: 700 },
+      });
+      const small = await send('RESIZE_WINDOW', { width: 10, height: 10 });
+      expect(small.result).toEqual({
+        ok: true,
+        value: { width: 320, height: 360 },
+      });
+      const huge = await send('RESIZE_WINDOW', { width: 99999, height: 99999 });
+      expect(huge.result).toEqual({
+        ok: true,
+        value: { width: 1000, height: 1200 },
+      });
+      expect(resizedTo).toHaveLength(3);
+      expect(
+        (await send('RESIZE_WINDOW', { width: 'x', height: 1 })).result,
+      ).toMatchObject({
+        ok: false,
+        code: 'INVALID_MESSAGE',
+      });
     });
   });
 

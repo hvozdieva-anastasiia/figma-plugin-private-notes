@@ -9,13 +9,24 @@ import {
   useReducer,
   type ReactNode,
 } from 'react';
-import type { Note, NoteKind, NoteTarget } from '../shared/model';
+import type {
+  Note,
+  NoteKind,
+  NoteTarget,
+  Result,
+  TaskStatus,
+} from '../shared/model';
 import { resolutionKey } from '../shared/group-notes';
-import { MAX_TARGET_REFS, type TargetRef } from '../shared/messages';
+import {
+  MAX_TARGET_REFS,
+  type BulkData,
+  type BulkItem,
+  type TargetRef,
+} from '../shared/messages';
 import type { KindFilter, Scope } from '../shared/select-notes';
 import { targetsEqual } from '../shared/validation';
 import { randomId, type Bridge } from './bridge';
-import { errorText } from './labels';
+import { count, errorText } from './labels';
 import {
   defaultTarget,
   initialState,
@@ -50,6 +61,23 @@ export interface NotesActions {
   askDelete(id: string | null): void;
   confirmDelete(note: Note): Promise<void>;
   dismissNotice(): void;
+
+  // Selection mode and bulk actions.
+  setSelectMode(on: boolean): void;
+  toggleSelected(id: string): void;
+  /** Tick (`on`) or untick several notes at once, for example a whole group. */
+  setSelected(ids: string[], on: boolean): void;
+  selectOnly(ids: string[]): void;
+  openBulkPanel(panel: 'move' | 'delete'): void;
+  closeBulkPanel(): void;
+  setMoveTarget(target: NoteTarget): void;
+  setMovePicker(open: boolean): void;
+  bulkDelete(): Promise<void>;
+  bulkStatus(status: TaskStatus): Promise<void>;
+  bulkMove(): Promise<void>;
+
+  /** Asks Plugin Main to resize the window; the size is clamped there. */
+  resizeWindow(width: number, height: number): void;
 }
 
 export interface NotesContextValue {
@@ -66,7 +94,7 @@ export function useNotes(): NotesContextValue {
   return value;
 }
 
-const SAVED = 'Записано в документ';
+const SAVED = 'Saved to the document';
 
 export function NotesProvider({
   bridge,
@@ -113,6 +141,51 @@ export function NotesProvider({
 
   const fail = (code: Parameters<typeof errorText>[0], message: string) =>
     errorText(code, message);
+
+  const selectedNotes = (): Note[] => {
+    const ids = new Set(state.selection.ids);
+    return state.notes.filter((note) => ids.has(note.id));
+  };
+  const toItems = (list: Note[]): BulkItem[] =>
+    list.map((note) => ({ id: note.id, expectedRevision: note.revision }));
+
+  /**
+   * Applies the per-note answers of a bulk command and tells the user what
+   * happened. Notes that failed stay selected so that the action can be repeated.
+   */
+  function reportBulk(
+    result: Result<BulkData>,
+    done: (n: number) => string,
+    extra = '',
+  ): void {
+    if (!result.ok) {
+      dispatch({ type: 'BULK_BUSY', busy: false });
+      dispatch({
+        type: 'NOTICE',
+        notice: { kind: 'error', text: fail(result.code, result.message) },
+      });
+      return;
+    }
+    const { results } = result.value;
+    dispatch({ type: 'BULK_APPLIED', results });
+    const succeeded = results.filter((item) => item.ok).length;
+    const firstFailure = results.find((item) => !item.ok);
+    const tail = extra === '' ? '' : ` ${extra}.`;
+    if (firstFailure && !firstFailure.ok) {
+      dispatch({
+        type: 'NOTICE',
+        notice: {
+          kind: 'error',
+          text: `${done(succeeded)}, ${results.length - succeeded} failed: ${fail(firstFailure.code, firstFailure.message)}${tail}`,
+        },
+      });
+    } else {
+      dispatch({
+        type: 'NOTICE',
+        notice: { kind: 'success', text: `${done(succeeded)}.${tail}` },
+      });
+    }
+  }
 
   // Targets are checked on demand, in bounded batches, only for the notes held
   // here; the document is never scanned. `error` answers are not retried by
@@ -344,6 +417,74 @@ export function NotesProvider({
     },
 
     dismissNotice: () => dispatch({ type: 'NOTICE', notice: null }),
+
+    setSelectMode: (on) => dispatch({ type: 'SELECT_MODE', on }),
+    toggleSelected: (id) => dispatch({ type: 'SELECT_TOGGLE', id }),
+    setSelected: (ids, on) => dispatch({ type: 'SELECT_SET', ids, on }),
+    selectOnly: (ids) => dispatch({ type: 'SELECT_ONLY', ids }),
+    openBulkPanel(panel) {
+      dispatch(
+        panel === 'move'
+          ? {
+              type: 'BULK_PANEL',
+              panel,
+              // Fixed now; only the move panel's dropdown changes it.
+              moveTarget: defaultTarget(state.context),
+            }
+          : { type: 'BULK_PANEL', panel },
+      );
+    },
+    closeBulkPanel: () => dispatch({ type: 'BULK_PANEL', panel: 'none' }),
+    setMoveTarget: (target) => dispatch({ type: 'BULK_MOVE_TARGET', target }),
+    setMovePicker: (open) => dispatch({ type: 'BULK_PICKER', open }),
+
+    async bulkDelete() {
+      const selected = selectedNotes();
+      if (selected.length === 0 || state.bulk.busy) return;
+      dispatch({ type: 'BULK_BUSY', busy: true });
+      const result = await bridge.request('BULK_DELETE', {
+        items: toItems(selected),
+      });
+      reportBulk(result, (n) => `Deleted ${count(n, 'note')}`);
+    },
+    async bulkStatus(status) {
+      const selected = selectedNotes();
+      const tasks = selected.filter((note) => note.kind === 'task');
+      if (state.bulk.busy) return;
+      if (tasks.length === 0) {
+        dispatch({
+          type: 'NOTICE',
+          notice: { kind: 'error', text: 'Select at least one task.' },
+        });
+        return;
+      }
+      const skipped = selected.length - tasks.length;
+      dispatch({ type: 'BULK_BUSY', busy: true });
+      const result = await bridge.request('BULK_SET_STATUS', {
+        items: toItems(tasks),
+        status,
+      });
+      reportBulk(
+        result,
+        (n) =>
+          `Marked ${count(n, 'task')} ${status === 'done' ? 'done' : 'open'}`,
+        skipped > 0 ? `${count(skipped, 'note')} skipped (not tasks)` : '',
+      );
+    },
+    async bulkMove() {
+      const selected = selectedNotes();
+      if (selected.length === 0 || state.bulk.busy) return;
+      dispatch({ type: 'BULK_BUSY', busy: true });
+      const result = await bridge.request('BULK_REBIND', {
+        items: toItems(selected),
+        target: state.bulk.moveTarget,
+      });
+      reportBulk(result, (n) => `Moved ${count(n, 'note')}`);
+    },
+
+    resizeWindow(width, height) {
+      void bridge.request('RESIZE_WINDOW', { width, height });
+    },
   };
 
   return (

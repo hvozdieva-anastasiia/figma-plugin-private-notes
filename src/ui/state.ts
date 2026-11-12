@@ -9,6 +9,7 @@ import type {
   NotesData,
   TargetRef,
   TargetResolution,
+  BulkItemResult,
 } from '../shared/messages';
 import { resolutionKey } from '../shared/group-notes';
 import {
@@ -68,6 +69,18 @@ export interface State {
   checking: Record<string, true>;
   /** Grows when the cache is cleared, so that answers to old requests are dropped. */
   generation: number;
+  /** Selection mode: which notes are ticked for a bulk action. */
+  selection: { active: boolean; ids: string[] };
+  bulk: BulkPanel;
+}
+
+export interface BulkPanel {
+  /** `move` and `delete` ask for the last details before a bulk action runs. */
+  panel: 'none' | 'move' | 'delete';
+  /** Chosen by the dropdown of the move panel only, like an editor's target. */
+  moveTarget: NoteTarget;
+  pickerOpen: boolean;
+  busy: boolean;
 }
 
 export const initialState: State = {
@@ -88,6 +101,19 @@ export const initialState: State = {
   resolutions: {},
   checking: {},
   generation: 0,
+  selection: { active: false, ids: [] },
+  bulk: {
+    panel: 'none',
+    moveTarget: {
+      type: 'file',
+      id: null,
+      pageId: null,
+      nameSnapshot: null,
+      pageNameSnapshot: null,
+    },
+    pickerOpen: false,
+    busy: false,
+  },
 };
 
 export type EditorPatch = Partial<
@@ -133,7 +159,18 @@ export type Action =
   | { type: 'CLEAR_RESOLUTIONS' }
   /** Forget `error` results of some targets so that they are checked again. */
   | { type: 'RETRY_RESOLUTIONS'; keys: string[] }
-  | { type: 'TARGET_MISSING'; target: TargetRef };
+  | { type: 'TARGET_MISSING'; target: TargetRef }
+  | { type: 'SELECT_MODE'; on: boolean }
+  | { type: 'SELECT_TOGGLE'; id: string }
+  /** Tick (`on`) or untick several notes at once, for example a whole group. */
+  | { type: 'SELECT_SET'; ids: string[]; on: boolean }
+  | { type: 'SELECT_ONLY'; ids: string[] }
+  | { type: 'BULK_PANEL'; panel: BulkPanel['panel']; moveTarget?: NoteTarget }
+  | { type: 'BULK_MOVE_TARGET'; target: NoteTarget }
+  | { type: 'BULK_PICKER'; open: boolean }
+  | { type: 'BULK_BUSY'; busy: boolean }
+  /** Applies the per-note answers of a bulk command. */
+  | { type: 'BULK_APPLIED'; results: BulkItemResult[] };
 
 let noticeCounter = 0;
 
@@ -199,7 +236,83 @@ export function reducer(state: State, action: Action): State {
         ...state,
         notes: state.notes.filter((note) => note.id !== action.id),
         confirmDeleteId: null,
+        selection: {
+          ...state.selection,
+          ids: state.selection.ids.filter((id) => id !== action.id),
+        },
       };
+    case 'SELECT_MODE':
+      return {
+        ...state,
+        selection: { active: action.on, ids: [] },
+        bulk: { ...state.bulk, panel: 'none', pickerOpen: false },
+        confirmDeleteId: null,
+      };
+    case 'SELECT_TOGGLE': {
+      const has = state.selection.ids.includes(action.id);
+      return {
+        ...state,
+        selection: {
+          ...state.selection,
+          ids: has
+            ? state.selection.ids.filter((id) => id !== action.id)
+            : [...state.selection.ids, action.id],
+        },
+      };
+    }
+    case 'SELECT_SET': {
+      const ids = new Set(state.selection.ids);
+      for (const id of action.ids) {
+        if (action.on) ids.add(id);
+        else ids.delete(id);
+      }
+      return { ...state, selection: { ...state.selection, ids: [...ids] } };
+    }
+    case 'SELECT_ONLY':
+      return {
+        ...state,
+        selection: { ...state.selection, ids: [...new Set(action.ids)] },
+      };
+    case 'BULK_PANEL':
+      return {
+        ...state,
+        bulk: {
+          ...state.bulk,
+          panel: action.panel,
+          pickerOpen: false,
+          moveTarget: action.moveTarget ?? state.bulk.moveTarget,
+        },
+      };
+    case 'BULK_MOVE_TARGET':
+      return {
+        ...state,
+        bulk: { ...state.bulk, moveTarget: action.target, pickerOpen: false },
+      };
+    case 'BULK_PICKER':
+      return { ...state, bulk: { ...state.bulk, pickerOpen: action.open } };
+    case 'BULK_BUSY':
+      return { ...state, bulk: { ...state.bulk, busy: action.busy } };
+    case 'BULK_APPLIED': {
+      let notes = state.notes;
+      const failed: string[] = [];
+      for (const result of action.results) {
+        if (!result.ok) {
+          failed.push(result.id);
+        } else if (result.note === null) {
+          notes = notes.filter((note) => note.id !== result.id);
+        } else {
+          notes = upsert(notes, result.note);
+        }
+      }
+      // Notes that failed stay ticked so that the action can be repeated for them.
+      const kept = state.selection.ids.filter((id) => failed.includes(id));
+      return {
+        ...state,
+        notes,
+        selection: { ...state.selection, ids: kept },
+        bulk: { ...state.bulk, panel: 'none', pickerOpen: false, busy: false },
+      };
+    }
     case 'ASK_DELETE':
       return { ...state, confirmDeleteId: action.id };
     case 'BUSY': {

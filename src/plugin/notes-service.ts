@@ -15,6 +15,7 @@ import {
   type Result,
   type TaskStatus,
 } from '../shared/model';
+import type { BulkItemResult } from '../shared/messages';
 import {
   fail,
   isNoteKind,
@@ -90,6 +91,10 @@ export interface NotesService {
   rebind(input: RebindNoteInput): Result<Note>;
   setStatus(input: SetStatusInput): Result<Note>;
   remove(input: DeleteNoteInput): Result<{ id: string }>;
+  /** Each of these answers every note separately; see `BulkItemResult`. */
+  bulkRemove(items: NoteRef[]): Result<BulkItemResult[]>;
+  bulkSetStatus(items: NoteRef[], status: TaskStatus): Result<BulkItemResult[]>;
+  bulkRebind(items: NoteRef[], target: NoteTarget): Result<BulkItemResult[]>;
 }
 
 export function createNotesService(deps: NotesServiceDeps): NotesService {
@@ -189,7 +194,34 @@ export function createNotesService(deps: NotesServiceDeps): NotesService {
     );
   }
 
-  return {
+  /**
+   * Runs one single-note operation for each note. Notes are changed one at a
+   * time, so a failure never stops the rest and each note has its own answer.
+   */
+  function bulk(
+    items: NoteRef[],
+    run: (item: NoteRef) => Result<Note | null>,
+  ): Result<BulkItemResult[]> {
+    const author = currentAuthor();
+    if (!author.ok) return author;
+    if (items.length > limits.maxNotesPerAuthor) {
+      return fail('INVALID_COMMAND', 'too many notes in one command');
+    }
+    const results = items.map((item): BulkItemResult => {
+      const outcome = run(item);
+      return outcome.ok
+        ? { id: item.id, ok: true, note: outcome.value }
+        : {
+            id: item.id,
+            ok: false,
+            code: outcome.code,
+            message: outcome.message,
+          };
+    });
+    return { ok: true, value: results };
+  }
+
+  const service: NotesService = {
     list() {
       const author = currentAuthor();
       if (!author.ok) return author;
@@ -294,5 +326,21 @@ export function createNotesService(deps: NotesServiceDeps): NotesService {
       const deleted = deleteOwnNote(store, author.value, input.id);
       return deleted.ok ? { ok: true, value: { id: input.id } } : deleted;
     },
+
+    bulkRemove(items) {
+      return bulk(items, (item) => {
+        const removed = service.remove(item);
+        return removed.ok ? { ok: true, value: null } : removed;
+      });
+    },
+
+    bulkSetStatus(items, status) {
+      return bulk(items, (item) => service.setStatus({ ...item, status }));
+    },
+
+    bulkRebind(items, target) {
+      return bulk(items, (item) => service.rebind({ ...item, target }));
+    },
   };
+  return service;
 }

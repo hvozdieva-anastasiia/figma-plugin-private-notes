@@ -3,7 +3,7 @@ import { codePointLength } from '../../shared/validation';
 import { LIMITS } from '../../shared/model';
 import { useNotes } from '../NotesProvider';
 import { isDirty, type EditorDraft } from '../state';
-import { TargetDropdown } from './TargetDropdown';
+import { TargetField } from './TargetField';
 import { TargetPicker } from './TargetPicker';
 
 /** Plain-text editor. Its target is fixed at opening and changed only by the dropdown. */
@@ -34,35 +34,44 @@ export function NoteEditor({ editor }: { editor: EditorDraft }) {
         if (canSave) void actions.saveEditor(editor);
       }}
     >
-      <h2 className="editor__title">
-        {creating ? 'Новая заметка' : 'Редактирование заметки'}
-      </h2>
+      <h2 className="editor__title">{creating ? 'New note' : 'Edit note'}</h2>
 
       {creating ? (
-        <div className="segmented" role="group" aria-label="Тип записи">
+        <div className="segmented" role="group" aria-label="Kind">
           <button
             type="button"
             aria-pressed={editor.kind === 'note'}
             onClick={() => actions.setEditorKind('note')}
           >
-            Заметка
+            Note
           </button>
           <button
             type="button"
             aria-pressed={editor.kind === 'task'}
             onClick={() => actions.setEditorKind('task')}
           >
-            Задача
+            Task
           </button>
         </div>
       ) : null}
 
-      <TargetDropdown editor={editor} />
-      {editor.pickerOpen ? <TargetPicker /> : null}
+      <TargetField
+        label="Target"
+        target={editor.draftTarget}
+        disabled={editor.saving}
+        onChange={actions.setEditorTarget}
+        onChooseOther={() => actions.setPickerOpen(true)}
+      />
+      {editor.pickerOpen ? (
+        <TargetPicker
+          onPick={actions.setEditorTarget}
+          onClose={() => actions.setPickerOpen(false)}
+        />
+      ) : null}
 
       <div className="field">
         <label htmlFor={textId} className="field__label">
-          Текст
+          Text
         </label>
         <textarea
           id={textId}
@@ -87,21 +96,21 @@ export function NoteEditor({ editor }: { editor: EditorDraft }) {
       ) : null}
 
       {editor.discardAsked ? (
-        <div className="confirm" role="group" aria-label="Подтверждение отмены">
-          <span>Отменить несохранённый текст?</span>
+        <div className="confirm" role="group" aria-label="Confirm discarding">
+          <span>Discard the unsaved text?</span>
           <button
             type="button"
             className="btn btn--danger"
             onClick={actions.closeEditor}
           >
-            Отменить
+            Discard
           </button>
           <button
             type="button"
             className="btn"
             onClick={() => actions.askDiscard(false)}
           >
-            Продолжить
+            Keep editing
           </button>
         </div>
       ) : (
@@ -111,7 +120,7 @@ export function NoteEditor({ editor }: { editor: EditorDraft }) {
             className="btn btn--primary"
             disabled={!canSave}
           >
-            {editor.saving ? 'Записываю…' : 'Сохранить'}
+            {editor.saving ? 'Saving…' : 'Save'}
           </button>
           <button
             type="button"
@@ -119,7 +128,7 @@ export function NoteEditor({ editor }: { editor: EditorDraft }) {
             disabled={editor.saving}
             onClick={cancel}
           >
-            Отмена
+            Cancel
           </button>
         </div>
       )}

@@ -4,7 +4,7 @@
 // Groups are keyed by target type and ID, never by name. Names and the page of
 // a frame come from `resolutions` (what Figma reported for the target) when
 // they are known, and from the snapshot stored in the note otherwise. A target
-// whose resolution is `missing` moves its notes to "Без доступной привязки";
+// whose resolution is `missing` moves its notes to "No available target";
 // `unchecked`, `checking` and `error` never do.
 
 import type { Note } from './model';
