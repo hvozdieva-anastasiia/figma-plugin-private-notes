@@ -1,0 +1,36 @@
+{
+  "installedAt": "2026-11-11",
+  "scope": "project (.agents/skills)",
+  "skills": [
+    {
+      "directory": "react-best-practices",
+      "repository": "https://github.com/vercel-labs/agent-skills",
+      "revision": "1a2c79d4e6c4a2283dc2c614b6538cbe1ed5ca62",
+      "path": "skills/react-best-practices"
+    },
+    {
+      "directory": "composition-patterns",
+      "repository": "https://github.com/vercel-labs/agent-skills",
+      "revision": "1a2c79d4e6c4a2283dc2c614b6538cbe1ed5ca62",
+      "path": "skills/composition-patterns"
+    },
+    {
+      "directory": "web-design-guidelines",
+      "repository": "https://github.com/vercel-labs/agent-skills",
+      "revision": "1a2c79d4e6c4a2283dc2c614b6538cbe1ed5ca62",
+      "path": "skills/web-design-guidelines"
+    },
+    {
+      "directory": "impeccable",
+      "repository": "https://github.com/pbakaus/impeccable",
+      "revision": "c1e0e5492fbb524f5df84d635ecfae7dc438ec45",
+      "path": ".agents/skills/impeccable"
+    },
+    {
+      "directory": "typescript-advanced-types",
+      "repository": "https://github.com/wshobson/agents",
+      "revision": "9c61ab243def98f72da12abd41cfcf5bcd91af9d",
+      "path": "plugins/javascript-typescript/skills/typescript-advanced-types"
+    }
+  ]
+}
