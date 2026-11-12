@@ -35,7 +35,17 @@ export interface EditorDraft {
   error: string | null;
   pickerOpen: boolean;
   discardAsked: boolean;
+  /** Set when saving found that the note changed or vanished in the document. */
+  conflict: EditorConflict | null;
 }
+
+/**
+ * What saving found out: the note was changed after the editor opened (another
+ * window, Undo, Redo) with `current` as it is now, or it no longer exists.
+ * The draft is kept either way.
+ */
+export type EditorConflict =
+  { kind: 'changed'; current: Note } | { kind: 'deleted' };
 
 export interface Notice {
   kind: 'success' | 'error';
@@ -126,6 +136,7 @@ export type EditorPatch = Partial<
     | 'error'
     | 'saving'
     | 'discardAsked'
+    | 'conflict'
   >
 >;
 
@@ -197,13 +208,25 @@ export function reducer(state: State, action: Action): State {
       };
     case 'INIT_FAILED':
       return { ...state, phase: 'failed', failure: action.message };
-    case 'NOTES_LOADED':
+    case 'NOTES_LOADED': {
+      // The document is the source of truth: what is gone from it (deleted,
+      // or removed by Undo) is gone from the window too, and from the selection.
+      const present = new Set(action.data.notes.map((note) => note.id));
       return {
         ...state,
         notes: action.data.notes,
         unreadable: action.data.problems.length,
         refreshing: false,
+        selection: {
+          ...state.selection,
+          ids: state.selection.ids.filter((id) => present.has(id)),
+        },
+        confirmDeleteId:
+          state.confirmDeleteId !== null && present.has(state.confirmDeleteId)
+            ? state.confirmDeleteId
+            : null,
       };
+    }
     case 'REFRESHING':
       return { ...state, refreshing: action.value };
     case 'CONTEXT':

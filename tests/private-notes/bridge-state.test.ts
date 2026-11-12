@@ -165,6 +165,7 @@ describe('state', () => {
     error: null,
     pickerOpen: false,
     discardAsked: false,
+    conflict: null,
   };
   const ready = (patch: Partial<State> = {}): State => ({
     ...initialState,

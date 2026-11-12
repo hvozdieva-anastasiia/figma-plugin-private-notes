@@ -3,6 +3,7 @@ import { codePointLength } from '../../shared/validation';
 import { LIMITS } from '../../shared/model';
 import { useNotes } from '../NotesProvider';
 import { isDirty, type EditorDraft } from '../state';
+import { targetLabel } from '../labels';
 import { TargetField } from './TargetField';
 import { TargetPicker } from './TargetPicker';
 
@@ -95,7 +96,9 @@ export function NoteEditor({ editor }: { editor: EditorDraft }) {
         </p>
       ) : null}
 
-      {editor.discardAsked ? (
+      {editor.conflict ? <ConflictPanel editor={editor} /> : null}
+
+      {editor.conflict ? null : editor.discardAsked ? (
         <div className="confirm" role="group" aria-label="Confirm discarding">
           <span>Discard the unsaved text?</span>
           <button
@@ -133,5 +136,61 @@ export function NoteEditor({ editor }: { editor: EditorDraft }) {
         </div>
       )}
     </form>
+  );
+}
+
+/**
+ * Shown when saving found that the note changed after the editor opened, or
+ * vanished (another window, Undo, Redo). The user's text stays in the editor;
+ * nothing is overwritten until the user chooses to.
+ */
+function ConflictPanel({ editor }: { editor: EditorDraft }) {
+  const { actions } = useNotes();
+  const { conflict } = editor;
+  if (!conflict) return null;
+  const changed = conflict.kind === 'changed';
+  return (
+    <div className="conflict" role="alert">
+      {changed ? (
+        <>
+          <p className="conflict__title">
+            This note was changed in the document after you opened it (in
+            another window, or by Undo or Redo).
+          </p>
+          <p className="conflict__label">Current version</p>
+          <p className="conflict__text">{conflict.current.text}</p>
+          <p className="note__meta">{targetLabel(conflict.current.target)}</p>
+        </>
+      ) : (
+        <p className="conflict__title">
+          This note no longer exists in the document (it was deleted, or Undo
+          removed it). Your text is still here.
+        </p>
+      )}
+      <div className="editor__actions">
+        <button
+          type="button"
+          className="btn btn--primary"
+          disabled={editor.saving}
+          onClick={() => void actions.resolveConflict(editor, 'overwrite')}
+        >
+          {changed ? 'Save my version' : 'Save as a new note'}
+        </button>
+        <button
+          type="button"
+          className="btn"
+          onClick={() => void actions.resolveConflict(editor, 'keep')}
+        >
+          Keep editing
+        </button>
+        <button
+          type="button"
+          className="btn btn--danger-text"
+          onClick={() => void actions.resolveConflict(editor, 'discard')}
+        >
+          {changed ? 'Use the current version' : 'Discard'}
+        </button>
+      </div>
+    </div>
   );
 }

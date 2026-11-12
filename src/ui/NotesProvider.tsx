@@ -5,8 +5,10 @@
 import {
   createContext,
   use,
+  useCallback,
   useEffect,
   useReducer,
+  useRef,
   type ReactNode,
 } from 'react';
 import type {
@@ -57,6 +59,15 @@ export interface NotesActions {
   setEditorTarget(target: NoteTarget): void;
   setPickerOpen(open: boolean): void;
   saveEditor(editor: EditorDraft): Promise<void>;
+  /**
+   * After a conflict: `overwrite` repeats the user's change on the current
+   * version (or recreates a vanished note), `discard` drops the draft, `keep`
+   * goes back to editing.
+   */
+  resolveConflict(
+    editor: EditorDraft,
+    choice: 'overwrite' | 'discard' | 'keep',
+  ): Promise<void>;
   toggleStatus(note: Note): Promise<void>;
   askDelete(id: string | null): void;
   confirmDelete(note: Note): Promise<void>;
@@ -95,6 +106,9 @@ export function useNotes(): NotesContextValue {
 }
 
 const SAVED = 'Saved to the document';
+
+/** Coming back to the window refreshes the list, but not more often than this. */
+const FOCUS_REFRESH_MIN_MS = 1500;
 
 export function NotesProvider({
   bridge,
@@ -224,21 +238,56 @@ export function NotesProvider({
     }
   }, [bridge, neededKey, generation]);
 
-  const actions: NotesActions = {
-    async refresh() {
-      // The document may have changed (renames, moves, deletions, Undo): ask again.
+  // The document is the source of truth and can change under the window
+  // (Undo, Redo, another window). The list is read again on request and when
+  // the window gets the focus back, at most once in a short time. A failed
+  // reading is reported, never repeated by itself.
+  const inFlight = useRef(false);
+  const lastRefresh = useRef(0);
+  const refreshNotes = useCallback(
+    async (reason: 'manual' | 'focus'): Promise<void> => {
+      if (inFlight.current) return;
+      inFlight.current = true;
+      lastRefresh.current = Date.now();
+      // Renames, moves and deletions are asked about again as well.
       dispatch({ type: 'CLEAR_RESOLUTIONS' });
       dispatch({ type: 'REFRESHING', value: true });
       const result = await bridge.request('REFRESH_NOTES', {});
-      if (result.ok) dispatch({ type: 'NOTES_LOADED', data: result.value });
-      else {
-        dispatch({ type: 'REFRESHING', value: false });
-        dispatch({
-          type: 'NOTICE',
-          notice: { kind: 'error', text: fail(result.code, result.message) },
-        });
+      inFlight.current = false;
+      if (result.ok) {
+        dispatch({ type: 'NOTES_LOADED', data: result.value });
+        return;
       }
+      dispatch({ type: 'REFRESHING', value: false });
+      const why = errorText(result.code, result.message);
+      dispatch({
+        type: 'NOTICE',
+        notice: {
+          kind: 'error',
+          text:
+            reason === 'focus'
+              ? `Could not refresh the list; it may be out of date. ${why}`
+              : why,
+        },
+      });
     },
+    [bridge],
+  );
+
+  const ready = state.phase === 'ready';
+  useEffect(() => {
+    if (!ready) return;
+    lastRefresh.current = Date.now();
+    const onFocus = () => {
+      if (Date.now() - lastRefresh.current < FOCUS_REFRESH_MIN_MS) return;
+      void refreshNotes('focus');
+    };
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
+  }, [ready, refreshNotes]);
+
+  const actions: NotesActions = {
+    refresh: () => refreshNotes('manual'),
     retryInit: loadInit,
     setQuery: (query) => dispatch({ type: 'SET_QUERY', query }),
     setFilter: (filter) => dispatch({ type: 'SET_FILTER', filter }),
@@ -262,6 +311,7 @@ export function NotesProvider({
           error: null,
           pickerOpen: false,
           discardAsked: false,
+          conflict: null,
         },
       });
     },
@@ -306,6 +356,7 @@ export function NotesProvider({
           error: null,
           pickerOpen: options?.rebind === true,
           discardAsked: false,
+          conflict: null,
         },
       });
     },
@@ -366,6 +417,34 @@ export function NotesProvider({
         dispatch({ type: 'NOTE_SAVED', note: result.value });
         dispatch({ type: 'CLOSE_EDITOR' });
         dispatch({ type: 'NOTICE', notice: { kind: 'success', text: SAVED } });
+      } else if (
+        editor.mode === 'edit' &&
+        (result.code === 'REVISION_CONFLICT' || result.code === 'NOT_FOUND')
+      ) {
+        // The note changed or vanished after the editor opened: read the
+        // document, show how the note is now and let the user decide.
+        const fresh = await bridge.request('REFRESH_NOTES', {});
+        if (fresh.ok) {
+          dispatch({ type: 'NOTES_LOADED', data: fresh.value });
+          const current = fresh.value.notes.find(
+            (note) => note.id === editor.noteId,
+          );
+          dispatch({
+            type: 'EDITOR_PATCH',
+            patch: {
+              saving: false,
+              error: null,
+              conflict: current
+                ? { kind: 'changed', current }
+                : { kind: 'deleted' },
+            },
+          });
+          return;
+        }
+        dispatch({
+          type: 'EDITOR_PATCH',
+          patch: { saving: false, error: fail(fresh.code, fresh.message) },
+        });
       } else {
         // The draft stays so that nothing typed is lost.
         dispatch({
@@ -376,6 +455,41 @@ export function NotesProvider({
           },
         });
       }
+    },
+
+    async resolveConflict(editor, choice) {
+      const conflict = editor.conflict;
+      if (!conflict || editor.saving) return;
+      if (choice === 'keep') {
+        dispatch({ type: 'EDITOR_PATCH', patch: { conflict: null } });
+        return;
+      }
+      if (choice === 'discard') {
+        dispatch({ type: 'CLOSE_EDITOR' });
+        return;
+      }
+      // Repeat the user's own change on top of the version that is there now.
+      if (conflict.kind === 'changed') {
+        const { current } = conflict;
+        await actions.saveEditor({
+          ...editor,
+          expectedRevision: current.revision,
+          originalText: current.text,
+          originalTarget: current.target,
+          conflict: null,
+        });
+        return;
+      }
+      // The note is gone: the same text and target become a new note.
+      await actions.saveEditor({
+        ...editor,
+        mode: 'create',
+        noteId: randomId(),
+        expectedRevision: null,
+        originalText: '',
+        originalTarget: null,
+        conflict: null,
+      });
     },
 
     async toggleStatus(note) {
