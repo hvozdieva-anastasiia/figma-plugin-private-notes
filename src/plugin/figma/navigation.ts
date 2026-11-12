@@ -11,6 +11,17 @@ import type {
 import { fail } from '../../shared/validation';
 import { pageOf } from './targets';
 
+/** IDs of the frames around a node, nearest first, up to the page. */
+function ancestorFrameIds(node: BaseNode): string[] {
+  const ids: string[] = [];
+  let current: BaseNode | null = node.parent;
+  while (current && current.type !== 'PAGE') {
+    if (current.type === 'FRAME') ids.push(current.id);
+    current = current.parent;
+  }
+  return ids;
+}
+
 /**
  * Looks each target up by ID. A missing node is `missing`; an API exception is
  * `error` and is never reported as a deleted target.
@@ -48,6 +59,7 @@ export function resolveTargets(
           name: node.name,
           pageId: page.id,
           pageName: page.name,
+          ancestorFrameIds: ancestorFrameIds(node),
         };
       } catch {
         return { type: ref.type, id: ref.id, state: 'error' };

@@ -1,11 +1,7 @@
 import type { KindFilter } from '../../shared/select-notes';
 import { useNotes } from '../NotesProvider';
-import { targetLabel } from '../labels';
-import {
-  currentSelection,
-  frameTargetFromContext,
-  pageTargetFromContext,
-} from '../state';
+import { count, targetLabel } from '../labels';
+import { currentSelection, workingTarget } from '../state';
 import { PlusIcon, RefreshIcon, SearchIcon } from './Icons';
 
 const FILTERS: { value: KindFilter; label: string }[] = [
@@ -20,12 +16,11 @@ const FILTERS: { value: KindFilter; label: string }[] = [
  * button, the refresh button. Below: the kind filter and the scope.
  */
 export function NotesToolbar() {
-  const { state, actions } = useNotes();
+  const { state, actions, meta } = useNotes();
   const { query, filter, scope, context, refreshing } = state;
   const selection = currentSelection(context);
-  const currentTarget = context
-    ? (frameTargetFromContext(context) ?? pageTargetFromContext(context))
-    : null;
+  const currentTarget = context ? workingTarget(context) : null;
+  const hereCount = meta.here.size;
 
   return (
     <div className="toolbar">
@@ -120,7 +115,13 @@ export function NotesToolbar() {
         {currentTarget ? (
           <p className="scope__hint">
             Now: {targetLabel(currentTarget)}
-            {selection.frameId === null ? ' (and its frames)' : ''}
+            {selection.frameId === null
+              ? ' (and its frames)'
+              : ' (and frames inside)'}
+            {' · '}
+            {hereCount === 0
+              ? 'no notes here'
+              : `${count(hereCount, 'note')} here`}
           </p>
         ) : null}
       </div>

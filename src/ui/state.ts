@@ -86,11 +86,13 @@ export interface State {
 
 export interface BulkPanel {
   /** `move` and `delete` ask for the last details before a bulk action runs. */
-  panel: 'none' | 'move' | 'delete';
+  panel: 'none' | 'move' | 'delete' | 'export';
   /** Chosen by the dropdown of the move panel only, like an editor's target. */
   moveTarget: NoteTarget;
   pickerOpen: boolean;
   busy: boolean;
+  /** The Markdown shown for copying by hand when the clipboard is unavailable. */
+  exportText: string;
 }
 
 export const initialState: State = {
@@ -123,6 +125,7 @@ export const initialState: State = {
     },
     pickerOpen: false,
     busy: false,
+    exportText: '',
   },
 };
 
@@ -184,6 +187,8 @@ export type Action =
   | { type: 'BULK_MOVE_TARGET'; target: NoteTarget }
   | { type: 'BULK_PICKER'; open: boolean }
   | { type: 'BULK_BUSY'; busy: boolean }
+  /** Opens the panel with the Markdown to copy by hand. */
+  | { type: 'BULK_EXPORT'; text: string }
   /** Applies the per-note answers of a bulk command. */
   | { type: 'BULK_APPLIED'; results: BulkItemResult[] };
 
@@ -209,6 +214,8 @@ export function reducer(state: State, action: Action): State {
         notes: action.data.notes,
         unreadable: action.data.problems.length,
         context: action.data.context,
+        // The view the person left the list in last time.
+        scope: action.data.prefs.scope,
       };
     case 'INIT_FAILED':
       return { ...state, phase: 'failed', failure: action.message };
@@ -318,6 +325,16 @@ export function reducer(state: State, action: Action): State {
       };
     case 'BULK_PICKER':
       return { ...state, bulk: { ...state.bulk, pickerOpen: action.open } };
+    case 'BULK_EXPORT':
+      return {
+        ...state,
+        bulk: {
+          ...state.bulk,
+          panel: 'export',
+          exportText: action.text,
+          pickerOpen: false,
+        },
+      };
     case 'BULK_BUSY':
       return { ...state, bulk: { ...state.bulk, busy: action.busy } };
     case 'BULK_APPLIED': {
@@ -407,9 +424,15 @@ export function currentSelection(
   context: DocumentContext | null,
 ): CurrentSelection {
   if (!context) return { frameId: null, pageId: null };
+  // The working frame is reported by Plugin Main (the selected frame, or the
+  // frame around a selected layer). Without it, one selected FRAME is used.
   const [only] = context.selection;
   const frameId =
-    context.selectionCount === 1 && only?.type === 'FRAME' ? only.id : null;
+    context.focusFrame !== undefined
+      ? (context.focusFrame?.id ?? null)
+      : context.selectionCount === 1 && only?.type === 'FRAME'
+        ? only.id
+        : null;
   return { frameId, pageId: context.page.id };
 }
 
@@ -444,6 +467,27 @@ export const FILE_TARGET: NoteTarget = {
   nameSnapshot: null,
   pageNameSnapshot: null,
 };
+
+/**
+ * What "Now:" names: the working frame (the selected frame or the frame around
+ * a selected layer), else the current page. Not used as a default for new notes.
+ */
+export function workingTarget(context: DocumentContext): NoteTarget {
+  if (context.focusFrame) {
+    return {
+      type: 'frame',
+      id: context.focusFrame.id,
+      pageId: context.page.id,
+      nameSnapshot: context.focusFrame.name,
+      pageNameSnapshot: context.page.name,
+    };
+  }
+  if (context.focusFrame === undefined) {
+    const frame = frameTargetFromContext(context);
+    if (frame) return frame;
+  }
+  return pageTargetFromContext(context);
+}
 
 /** Default target of a new note: the selected frame, else the current page. */
 export function defaultTarget(context: DocumentContext | null): NoteTarget {

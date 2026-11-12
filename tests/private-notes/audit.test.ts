@@ -21,8 +21,9 @@ const sources = import.meta.glob('../../src/**/*.{ts,tsx}', {
 const code = (text: string) =>
   text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/.*$/gm, '$1');
 
-const scan = (pattern: RegExp) =>
+const scan = (pattern: RegExp, within = '') =>
   Object.entries(sources)
+    .filter(([file]) => file.includes(within))
     .filter(([, text]) => pattern.test(code(text)))
     .map(([file]) => file);
 
@@ -51,8 +52,17 @@ describe('what the plugin never does', () => {
     expect(
       scan(
         /\.create(Frame|Text|Rectangle|Ellipse|Page|Comment|Component|Section|Sticky|Shape|Node|Line|Vector|Group|Image)\w*\(|\.appendChild\(|\.insertChild\(|\.remove\(\)|\.visible\s*=[^=]|\.locked\s*=[^=]|\.name\s*=[^=]|\.characters\s*=[^=]|setRelaunchData|setSharedPluginData/,
+        // The window may touch its own DOM (copying text); only Plugin Main
+        // can reach layers.
+        '/src/plugin/',
       ),
     ).toEqual([]);
+  });
+
+  it('touches the window DOM only to copy text', () => {
+    expect(scan(/\.appendChild\(|\.removeChild\(/, '/src/ui/')).toEqual([
+      '../../src/ui/clipboard.ts',
+    ]);
   });
 
   it('stores notes only on the document root, through the pluginData API', () => {
@@ -128,6 +138,8 @@ describe('what the plugin never reveals', () => {
         selection: [],
         selectionCount: 0,
       }),
+      getPrefs: () => ({ scope: 'all' as const }),
+      setPrefs: (prefs) => prefs,
       resolveTarget: (target) => Promise.resolve({ ok: true, value: target }),
       listTargets: () =>
         Promise.resolve({ ok: true, value: { options: [], truncated: false } }),

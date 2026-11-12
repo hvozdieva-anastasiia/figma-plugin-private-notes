@@ -2,9 +2,11 @@ import { act, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import type { NoteTarget } from '../../src/shared/model';
 import {
+  DEFAULT_PREFS,
   PROTOCOL_VERSION,
   clampWindow,
   type DocumentContext,
+  type Prefs,
   type TargetResolution,
   type WindowSize,
 } from '../../src/shared/messages';
@@ -20,6 +22,8 @@ export interface Live {
   name: string;
   pageId: string;
   pageName: string;
+  /** Frames around this one, nearest first. */
+  ancestorFrameIds?: string[];
 }
 
 export const PAGE_CONTEXT: DocumentContext = {
@@ -34,9 +38,13 @@ export const FRAME_CONTEXT: DocumentContext = {
 };
 
 /** The real UI, bridge, command handler and notes service over an in-memory document. */
-export function setup(initial: DocumentContext = PAGE_CONTEXT) {
+export function setup(
+  initial: DocumentContext = PAGE_CONTEXT,
+  initialPrefs: Prefs = DEFAULT_PREFS,
+) {
   const store = new MemoryStore();
   let context = initial;
+  let prefs = initialPrefs;
   const service = createNotesService({
     store,
     getUserId: () => '42',
@@ -62,6 +70,11 @@ export function setup(initial: DocumentContext = PAGE_CONTEXT) {
   const handle = createCommandHandler({
     service,
     getContext: () => context,
+    getPrefs: () => prefs,
+    setPrefs: (next) => {
+      prefs = next;
+      return prefs;
+    },
     resolveTarget: (target: NoteTarget) =>
       target.type !== 'file' && world[target.id] === 'missing'
         ? Promise.resolve({
@@ -141,6 +154,8 @@ export function setup(initial: DocumentContext = PAGE_CONTEXT) {
     asked,
     focused,
     resized,
+    /** What the plugin would remember for the next launch. */
+    savedPrefs: () => prefs,
     user: userEvent.setup(),
     /** Changes what Figma reports, without telling the window (a rename, for example). */
     setContext(next: DocumentContext) {

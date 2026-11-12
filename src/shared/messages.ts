@@ -39,7 +39,21 @@ export interface DocumentContext {
   /** At most the first 20 selected nodes. */
   selection: SelectionItem[];
   selectionCount: number;
+  /**
+   * The frame the user is working in: the selected frame, or the nearest frame
+   * around a single selected layer. `null` for no selection or several nodes.
+   * Absent in older senders: then a single selected frame is used.
+   */
+  focusFrame?: { id: string; name: string } | null;
 }
+
+/** Preferences of the person using the window; not part of any note. */
+export interface Prefs {
+  /** The view the list opens in. */
+  scope: 'all' | 'current';
+}
+
+export const DEFAULT_PREFS: Prefs = { scope: 'all' };
 
 export interface NotesData {
   notes: Note[];
@@ -49,6 +63,7 @@ export interface NotesData {
 
 export interface InitData extends NotesData {
   context: DocumentContext;
+  prefs: Prefs;
 }
 
 /** A page or a frame the user may choose in "Target". */
@@ -86,6 +101,11 @@ export type TargetResolution =
       /** The page the node really lives on now. */
       pageId: string;
       pageName: string;
+      /**
+       * IDs of the frames around this one, nearest first, up to the page.
+       * Lets "current selection" include the notes of nested frames.
+       */
+      ancestorFrameIds?: string[];
     }
   | { type: 'page' | 'frame'; id: string; state: 'missing' }
   | { type: 'page' | 'frame'; id: string; state: 'error' };
@@ -171,6 +191,7 @@ export interface CommandPayloads {
   BULK_SET_STATUS: { items: BulkItem[]; status: TaskStatus };
   BULK_REBIND: { items: BulkItem[]; target: NoteTarget };
   RESIZE_WINDOW: WindowSize;
+  SET_PREFS: Prefs;
 }
 
 export type CommandType = keyof CommandPayloads;
@@ -191,6 +212,7 @@ export interface CommandResults {
   BULK_SET_STATUS: BulkData;
   BULK_REBIND: BulkData;
   RESIZE_WINDOW: WindowSize;
+  SET_PREFS: Prefs;
 }
 
 export interface CommandMessage<C extends CommandType = CommandType> {
@@ -242,6 +264,7 @@ const COMMAND_TYPES: readonly string[] = [
   'BULK_SET_STATUS',
   'BULK_REBIND',
   'RESIZE_WINDOW',
+  'SET_PREFS',
 ];
 
 export function isCommandType(value: unknown): value is CommandType {
@@ -355,6 +378,11 @@ function parsePayload(
       const checked = validateTarget(payload.target);
       if (!checked.ok) return checked;
       return { ok: true, value: { items: items.value, target: checked.value } };
+    }
+    case 'SET_PREFS': {
+      const { scope } = payload;
+      if (scope !== 'all' && scope !== 'current') return invalid('bad scope');
+      return { ok: true, value: { scope } };
     }
     case 'RESIZE_WINDOW': {
       const { width, height } = payload;

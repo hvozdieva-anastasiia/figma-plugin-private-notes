@@ -1,5 +1,6 @@
 import { useRef, type KeyboardEvent, type PointerEvent } from 'react';
 import { useNotes } from '../NotesProvider';
+import { maxWindowHeight } from '../window-limits';
 
 const STEP = 20;
 const BIG_STEP = 100;
@@ -28,7 +29,7 @@ export function ResizeGrip() {
     // One request per frame is plenty and keeps the drag smooth.
     frame.current = window.requestAnimationFrame(() => {
       frame.current = null;
-      actions.resizeWindow(width, height);
+      actions.resizeWindow(width, Math.min(height, maxWindowHeight()));
     });
   }
 
@@ -69,7 +70,7 @@ export function ResizeGrip() {
     event.preventDefault();
     actions.resizeWindow(
       window.innerWidth + change[0],
-      window.innerHeight + change[1],
+      Math.min(window.innerHeight + change[1], maxWindowHeight()),
     );
   }
 

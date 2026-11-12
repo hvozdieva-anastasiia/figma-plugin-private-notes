@@ -7,6 +7,7 @@ import {
   use,
   useCallback,
   useEffect,
+  useMemo,
   useReducer,
   useRef,
   type ReactNode,
@@ -18,6 +19,7 @@ import type {
   Result,
   TaskStatus,
 } from '../shared/model';
+import { notesToMarkdown } from '../shared/export-markdown';
 import { resolutionKey } from '../shared/group-notes';
 import {
   MAX_TARGET_REFS,
@@ -25,11 +27,14 @@ import {
   type BulkItem,
   type TargetRef,
 } from '../shared/messages';
-import type { KindFilter, Scope } from '../shared/select-notes';
+import { hereIds, type KindFilter, type Scope } from '../shared/select-notes';
 import { targetsEqual } from '../shared/validation';
 import { randomId, type Bridge } from './bridge';
+import { copyText } from './clipboard';
 import { count, errorText } from './labels';
+import { maxWindowHeight } from './window-limits';
 import {
+  currentSelection,
   defaultTarget,
   initialState,
   neededTargets,
@@ -86,6 +91,8 @@ export interface NotesActions {
   bulkDelete(): Promise<void>;
   bulkStatus(status: TaskStatus): Promise<void>;
   bulkMove(): Promise<void>;
+  /** Copies the selected notes as Markdown; shows the text for manual copying if the clipboard refuses. */
+  copyMarkdown(): Promise<void>;
 
   /** Asks Plugin Main to resize the window; the size is clamped there. */
   resizeWindow(width: number, height: number): void;
@@ -94,7 +101,11 @@ export interface NotesActions {
 export interface NotesContextValue {
   state: State;
   actions: NotesActions;
-  meta: { bridge: Bridge };
+  meta: {
+    bridge: Bridge;
+    /** Notes that belong to the current selection (for the "here" marks and count). */
+    here: ReadonlySet<string>;
+  };
 }
 
 const NotesContext = createContext<NotesContextValue | null>(null);
@@ -286,12 +297,38 @@ export function NotesProvider({
     return () => window.removeEventListener('focus', onFocus);
   }, [ready, refreshNotes]);
 
+  // A remembered size can be taller than this screen allows (another monitor,
+  // a smaller Figma window): bring it back once, so that the bottom of the
+  // list and the resize handle stay reachable.
+  useEffect(() => {
+    if (window.innerHeight > maxWindowHeight()) {
+      void bridge.request('RESIZE_WINDOW', {
+        width: window.innerWidth,
+        height: maxWindowHeight(),
+      });
+    }
+  }, [bridge]);
+
+  const here = useMemo(
+    () =>
+      hereIds(
+        state.notes,
+        currentSelection(state.context),
+        new Map(Object.entries(state.resolutions)),
+      ),
+    [state.notes, state.context, state.resolutions],
+  );
+
   const actions: NotesActions = {
     refresh: () => refreshNotes('manual'),
     retryInit: loadInit,
     setQuery: (query) => dispatch({ type: 'SET_QUERY', query }),
     setFilter: (filter) => dispatch({ type: 'SET_FILTER', filter }),
-    setScope: (scope) => dispatch({ type: 'SET_SCOPE', scope }),
+    setScope(scope) {
+      dispatch({ type: 'SET_SCOPE', scope });
+      // Remembered for the next launch; a failure here changes nothing visible.
+      void bridge.request('SET_PREFS', { scope });
+    },
     toggleGroup: (key) => dispatch({ type: 'TOGGLE_GROUP', key }),
 
     openCreate() {
@@ -596,13 +633,33 @@ export function NotesProvider({
       reportBulk(result, (n) => `Moved ${count(n, 'note')}`);
     },
 
+    async copyMarkdown() {
+      const selected = selectedNotes();
+      if (selected.length === 0) return;
+      const text = notesToMarkdown(
+        selected,
+        new Map(Object.entries(state.resolutions)),
+      );
+      if (await copyText(text)) {
+        dispatch({
+          type: 'NOTICE',
+          notice: {
+            kind: 'success',
+            text: `Copied ${count(selected.length, 'note')} as Markdown.`,
+          },
+        });
+      } else {
+        dispatch({ type: 'BULK_EXPORT', text });
+      }
+    },
+
     resizeWindow(width, height) {
       void bridge.request('RESIZE_WINDOW', { width, height });
     },
   };
 
   return (
-    <NotesContext value={{ state, actions, meta: { bridge } }}>
+    <NotesContext value={{ state, actions, meta: { bridge, here } }}>
       {children}
     </NotesContext>
   );

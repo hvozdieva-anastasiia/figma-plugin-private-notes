@@ -75,7 +75,8 @@ export function matchesQuery(
 }
 
 /**
- * "Current selection": the notes of one selected frame; without such a frame,
+ * "Current selection": the notes of the working frame and of the frames inside
+ * it; without such a frame,
  * the notes of the current page and of the frames saved on it. Whole-file notes
  * belong to the general mode only.
  */
@@ -91,7 +92,13 @@ export function matchesScope(
   // A note whose target is gone is not on any page: only the general list shows it.
   if (live?.state === 'missing') return false;
   if (current.frameId !== null) {
-    return target.type === 'frame' && target.id === current.frameId;
+    if (target.type !== 'frame') return false;
+    if (target.id === current.frameId) return true;
+    // A frame inside the working frame counts too, however deep it is.
+    return (
+      live?.state === 'available' &&
+      (live.ancestorFrameIds ?? []).includes(current.frameId)
+    );
   }
   if (current.pageId !== null) {
     if (target.type === 'page') return target.id === current.pageId;
@@ -114,4 +121,20 @@ export function selectNotes(
       matchesQuery(note, options.query, options.resolutions) &&
       matchesScope(note, options.scope, options.current, options.resolutions),
   );
+}
+
+/**
+ * IDs of the notes that belong to the current selection, whatever the search,
+ * the filter or the scope: the "here" indicator never hides anything.
+ */
+export function hereIds(
+  notes: readonly Note[],
+  current: CurrentSelection,
+  resolutions?: Resolutions,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const note of notes) {
+    if (matchesScope(note, 'current', current, resolutions)) ids.add(note.id);
+  }
+  return ids;
 }

@@ -241,6 +241,7 @@ describe('state', () => {
         notes: [note],
         problems: [{ noteId: 'x', reason: 'corrupt', detail: '' }],
         context,
+        prefs: { scope: 'all' },
       },
     });
     expect(next).toMatchObject({ phase: 'ready', unreadable: 1 });

@@ -67,6 +67,14 @@ export function BulkBar() {
           </button>
           <button
             type="button"
+            className="btn"
+            disabled={none || bulk.busy}
+            onClick={() => void actions.copyMarkdown()}
+          >
+            Copy as Markdown
+          </button>
+          <button
+            type="button"
             className="btn btn--danger-text"
             disabled={none || bulk.busy}
             onClick={() => actions.openBulkPanel('delete')}
@@ -111,6 +119,33 @@ export function BulkBar() {
               onClick={actions.closeBulkPanel}
             >
               Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {bulk.panel === 'export' ? (
+        <div className="bulk__panel" role="group" aria-label="Markdown to copy">
+          <p className="bulk__ask">
+            The clipboard is not available here. Select the text below and copy
+            it by hand.
+          </p>
+          <textarea
+            className="textarea"
+            name="markdown"
+            readOnly
+            rows={8}
+            aria-label="Markdown of the selected notes"
+            value={bulk.exportText}
+            onFocus={(event) => event.currentTarget.select()}
+          />
+          <div className="bulk__actions">
+            <button
+              type="button"
+              className="btn"
+              onClick={actions.closeBulkPanel}
+            >
+              Close
             </button>
           </div>
         </div>

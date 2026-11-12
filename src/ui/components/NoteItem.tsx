@@ -17,13 +17,18 @@ export function NoteItem({
   /** The group heading already names the target; only the lost group repeats it. */
   showTarget: boolean;
 }) {
-  const { state, actions } = useNotes();
+  const { state, actions, meta } = useNotes();
   const busy = state.busyIds.includes(note.id);
   const confirming = state.confirmDeleteId === note.id;
   const done = note.status === 'done';
   const selecting = state.selection.active;
   const selected = state.selection.ids.includes(note.id);
   const { target } = note;
+  // Marked only when a frame is being worked on; the page's own notes need no mark.
+  const here =
+    state.scope === 'all' &&
+    state.context?.focusFrame != null &&
+    meta.here.has(note.id);
   const resolution =
     target.type === 'file'
       ? undefined
@@ -64,6 +69,7 @@ export function NoteItem({
       ) : null}
       <div className="note__body">
         <p className="note__text">{note.text}</p>
+        {here ? <p className="note__meta note__meta--here">Here</p> : null}
         {showTarget || missing ? (
           <p className="note__meta">
             {targetLabel(note.target)}

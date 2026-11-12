@@ -441,6 +441,11 @@ textarea {
   color: var(--danger);
 }
 
+.note__meta--here {
+  color: var(--brand);
+  font-weight: 600;
+}
+
 .link {
   padding: 0;
   border: 0;

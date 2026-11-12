@@ -1,10 +1,12 @@
 // Plugin Main: opens the window, answers its commands and reports the context.
 
 import {
+  DEFAULT_PREFS,
   DEFAULT_WINDOW,
   PROTOCOL_VERSION,
   clampWindow,
   type ContextMessage,
+  type Prefs,
   type WindowSize,
 } from '../shared/messages';
 import { readCurrentUserId } from './current-user';
@@ -37,6 +39,29 @@ async function loadSize(): Promise<WindowSize> {
   return DEFAULT_WINDOW;
 }
 
+const PREFS_KEY = 'private-notes:prefs';
+let prefs: Prefs = DEFAULT_PREFS;
+
+/** The remembered view; anything unreadable falls back to the default. */
+async function loadPrefs(): Promise<void> {
+  try {
+    const stored: unknown = await figma.clientStorage.getAsync(PREFS_KEY);
+    const scope =
+      typeof stored === 'object' && stored !== null
+        ? (stored as Prefs).scope
+        : undefined;
+    if (scope === 'all' || scope === 'current') prefs = { scope };
+  } catch {
+    // Storage is only a convenience.
+  }
+}
+
+function setPrefs(next: Prefs): Prefs {
+  prefs = { scope: next.scope };
+  figma.clientStorage.setAsync(PREFS_KEY, prefs).catch(() => undefined);
+  return prefs;
+}
+
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
 
 function resizeWindow(size: WindowSize): WindowSize {
@@ -64,6 +89,8 @@ const handle = createCommandHandler({
   resolveTargets: (targets) => resolveTargets(figma, targets),
   focusTarget: (target) => focusTarget(figma, target),
   resizeWindow,
+  getPrefs: () => prefs,
+  setPrefs,
 });
 
 // The context only informs the window. It never edits a draft or any note.
@@ -76,7 +103,7 @@ function postContext(): void {
   figma.ui.postMessage(message);
 }
 
-void loadSize().then((size) => {
+void Promise.all([loadSize(), loadPrefs()]).then(([size]) => {
   figma.showUI(__html__, {
     width: size.width,
     height: size.height,

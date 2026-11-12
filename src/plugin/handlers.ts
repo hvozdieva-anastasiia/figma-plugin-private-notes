@@ -16,6 +16,7 @@ import {
   type DocumentContext,
   type FocusData,
   type NotesData,
+  type Prefs,
   type ResponseMessage,
   type TargetRef,
   type TargetResolution,
@@ -45,6 +46,10 @@ export interface HandlerDeps {
   focusTarget(target: NoteTarget): Promise<Result<FocusData>>;
   /** Resizes the plugin window; returns the size actually applied. */
   resizeWindow(size: WindowSize): WindowSize;
+  /** The remembered preferences of this person (already loaded; never throws). */
+  getPrefs(): Prefs;
+  /** Stores the preferences for the next launch; returns what is now in effect. */
+  setPrefs(prefs: Prefs): Prefs;
 }
 
 function notesData(report: ListReport): NotesData {
@@ -105,6 +110,7 @@ export function createCommandHandler(deps: HandlerDeps): CommandHandler {
                 value: {
                   ...notesData(listed.value),
                   context: deps.getContext(),
+                  prefs: deps.getPrefs(),
                 },
               }
             : listed,
@@ -121,6 +127,7 @@ export function createCommandHandler(deps: HandlerDeps): CommandHandler {
                 value: {
                   ...notesData(listed.value),
                   context: deps.getContext(),
+                  prefs: deps.getPrefs(),
                 },
               }
             : listed,
@@ -217,6 +224,11 @@ export function createCommandHandler(deps: HandlerDeps): CommandHandler {
         return respond('RESIZE_WINDOW', ids, {
           ok: true,
           value: deps.resizeWindow(command.payload),
+        });
+      case 'SET_PREFS':
+        return respond('SET_PREFS', ids, {
+          ok: true,
+          value: deps.setPrefs(command.payload),
         });
       case 'SET_TASK_STATUS':
         return respond(

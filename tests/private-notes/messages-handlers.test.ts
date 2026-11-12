@@ -6,6 +6,7 @@ import {
   readMessageIds,
   clampWindow,
   type DocumentContext,
+  type Prefs,
   type TargetResolution,
   type WindowSize,
 } from '../../src/shared/messages';
@@ -53,6 +54,7 @@ describe('command parsing', () => {
       ['REBIND_NOTE', { id: 'a', expectedRevision: 1, target: FILE }],
       ['REFRESH_TARGETS', { targets: [{ type: 'frame', id: 'I1:11;1:9' }] }],
       ['FOCUS_NOTE', { id: 'a' }],
+      ['SET_PREFS', { scope: 'current' }],
     ] as const) {
       expect(parseCommand(command(type, payload)).ok).toBe(true);
     }
@@ -121,6 +123,7 @@ describe('command handler', () => {
   let focused: string[];
   let resizedTo: WindowSize[];
   let broken: boolean;
+  let prefs: Prefs;
 
   function handler() {
     return createCommandHandler({
@@ -130,6 +133,11 @@ describe('command handler', () => {
         now: () => 5000,
       }),
       getContext: () => context,
+      getPrefs: () => prefs,
+      setPrefs: (next) => {
+        prefs = next;
+        return prefs;
+      },
       resolveTarget: (target): Promise<Result<NoteTarget>> => {
         if (broken) return Promise.reject(new Error('API down'));
         if (target.type === 'file')
@@ -225,6 +233,7 @@ describe('command handler', () => {
     focused = [];
     resizedTo = [];
     broken = false;
+    prefs = { scope: 'all' };
   });
 
   it('answers READY with the own notes, the problems and the context', async () => {
@@ -249,6 +258,35 @@ describe('command handler', () => {
       { noteId: 'bad', reason: 'corrupt', detail: 'invalid JSON' },
     ]);
     expect(JSON.stringify(response)).not.toContain('private_notes_note_');
+  });
+
+  it('returns the remembered preferences with READY and REFRESH_NOTES', async () => {
+    prefs = { scope: 'current' };
+    for (const type of ['READY', 'REFRESH_NOTES'] as const) {
+      const response = await send(type, {});
+      if (response.command !== type || !response.result.ok)
+        throw new Error('bad');
+      expect((response.result.value as { prefs: Prefs }).prefs).toEqual({
+        scope: 'current',
+      });
+    }
+  });
+
+  it('stores preferences with SET_PREFS and returns what is in effect', async () => {
+    const response = await send('SET_PREFS', { scope: 'current' });
+    expect(response.result).toEqual({ ok: true, value: { scope: 'current' } });
+    expect(prefs).toEqual({ scope: 'current' });
+  });
+
+  it('rejects invalid preferences and does not change them', async () => {
+    for (const payload of [{ scope: 'everything' }, {}, { scope: 1 }, null]) {
+      const response = await send('SET_PREFS', payload);
+      expect(response.result).toMatchObject({
+        ok: false,
+        code: 'INVALID_MESSAGE',
+      });
+    }
+    expect(prefs).toEqual({ scope: 'all' });
   });
 
   it('uses the author from the host and ignores any author in the command', async () => {
