@@ -5,5 +5,5 @@
     "jsx": "react-jsx",
     "types": ["vite/client", "vitest/globals", "@testing-library/jest-dom"]
   },
-  "include": ["src/ui", "tests"]
+  "include": ["src/ui", "src/shared", "tests"]
 }
