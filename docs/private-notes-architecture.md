@@ -1,4 +1,4 @@
-# Private Notes — архитектура
+# Personal Notes & Tasks — архитектура
 
 Дата: 12 ноября 2026 года. Версия: 4. **Статус: хранение, UI и алгоритм согласованы в обсуждении; реализация не начата.**
 
@@ -188,7 +188,7 @@ client-storage.ts, document-marker.ts, document-context.ts с искусстве
 | Переход                      | setCurrentPageAsync, установка selection, viewport.scrollAndZoomIntoView [S3, S7] |
 | Связь React и plugin         | parent.postMessage, figma.ui.onmessage/postMessage [S8]                           |
 
-Manifest: name Private Notes, настоящий постоянный id, editorType ['figma'], documentAccess 'dynamic-page', main dist/code.js, ui dist/index.html, permissions ['currentuser'], networkAccess.allowedDomains ['none']. Private API и разрешения REST не нужны. [S9]
+Manifest: name Personal Notes & Tasks, настоящий постоянный id, editorType ['figma'], documentAccess 'dynamic-page', main dist/code.js, ui dist/index.html, permissions ['currentuser'], networkAccess.allowedDomains ['none']. Private API и разрешения REST не нужны. [S9]
 
 ## 8. Согласованный алгоритм управления заметками
 

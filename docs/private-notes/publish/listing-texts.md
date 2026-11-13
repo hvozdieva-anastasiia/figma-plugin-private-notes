@@ -1,4 +1,4 @@
-# Private Notes — тексты для формы публикации Figma Community
+# Personal Notes & Tasks — тексты для формы публикации Figma Community
 
 Все поля ниже готовы к копированию. Английский текст — то, что вставляется в
 форму; русские пометки — пояснения, в форму не вставляются.
@@ -12,31 +12,22 @@
 ## 1. Plugin name
 
 ```
-Private Notes
+Personal Notes & Tasks
 ```
 
-Совпадает с `manifest.json` → `"name": "Private Notes"`.
+Совпадает с `manifest.json` → `"name": "Personal Notes & Tasks"`.
 
-⚠️ **Занято.** В Community уже есть опубликованный плагин «Private Notes»
-(`figma.com/community/plugin/1482292605630548301`, март 2025, автор Shriya) —
-та же ниша: приватные аннотации, видимые только автору. Есть и «Private
-Comments – Personal Notes in Figma». Дубликаты имён формально допустимы, но
-одноимённый плагин в той же категории — прямой риск отказа как
-confusingly-similar/duplicate и гарантированно плохая находимость в поиске.
+Имя выбрано 2026-11-13. Контекст: прежнее имя «Private Notes» оказалось занятым —
+в Community уже опубликован одноимённый плагин той же ниши
+(`figma.com/community/plugin/1482292605630548301`, март 2025, автор Shriya),
+есть и «Private Comments – Personal Notes in Figma». Одноимённый плагин в той же
+категории — риск отказа как confusingly-similar и плохая находимость в поиске.
 
 Лочится только `id` в manifest (к нему привязаны сохранённые заметки) — поле
-`name` можно менять безболезненно. Кандидаты, сохраняющие смысл, но свободные
-(проверить финальный выбор поиском в Community):
-
-```
-Solo Notes
-Quiet Notes — private annotations
-Off Canvas — private notes
-```
-
-Если решено оставить «Private Notes» — запасной вариант листинга:
-`Private Notes — file-local` (имя листинга может отличаться от имени плагина
-в манифесте, но чем дальше от занятого, тем лучше).
+`name` менять безопасно, ключи хранения (`private_notes_note_`, `private-notes:*`)
+имени не содержат и не меняются. «Personal Notes & Tasks» свободно по результатам
+поиска в Community; перед самой публикацией проверить повторно на случай новых
+публикаций с похожим именем.
 
 ## 2. Tagline
 
@@ -53,7 +44,7 @@ Notes & tasks inside the file — for your eyes only
 ## 3. Description (основное описание)
 
 ```markdown
-Private Notes is a personal scratchpad and task list that lives inside the
+Personal Notes & Tasks is a private scratchpad and task list that lives inside the
 Figma file you are working in. Every note is anchored to a target you choose —
 the whole file, a page, or a specific frame — so feedback, TODOs and design
 reminders sit right next to the work they belong to.
@@ -108,7 +99,7 @@ Free. English UI.
 ## 4. How to use (инструкция — для description или отдельного блока)
 
 ```markdown
-1. Open the file you want to annotate, then run Plugins → Private Notes.
+1. Open the file you want to annotate, then run Plugins → Personal Notes & Tasks.
 2. Press + to create a note. Choose Note or Task, pick a Target
    (the selected frame, the current page, the whole file, or "Choose another
    page or frame…" to search), write the text, Save (or Ctrl+Enter).

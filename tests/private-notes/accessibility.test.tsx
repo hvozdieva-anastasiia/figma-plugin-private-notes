@@ -78,7 +78,7 @@ describe('accessibility', () => {
   it('has one page heading and group headings below it', async () => {
     await withNotes();
     expect(
-      screen.getByRole('heading', { level: 1, name: 'Private Notes' }),
+      screen.getByRole('heading', { level: 1, name: 'Personal Notes & Tasks' }),
     ).toBeInTheDocument();
     expect(screen.getAllByRole('heading', { level: 2 }).length).toBeGreaterThan(
       0,

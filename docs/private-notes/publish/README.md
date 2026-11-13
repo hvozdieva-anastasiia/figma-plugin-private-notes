@@ -1,4 +1,4 @@
-# Private Notes — пакет для публикации в Figma Community
+# Personal Notes & Tasks — пакет для публикации в Figma Community
 
 Всё для формы публикации собрано здесь. Сгенерировано 2026-11-13.
 
@@ -34,6 +34,8 @@ node work/publish/make-pages.mjs && node work/publish/shoot-pages.mjs`.
 1. Community → Publish → Plugins → выбрать проект → заполнить форму текстами
    из `listing-texts.md`, загрузить ассеты.
 2. Выложить `privacy-policy.md` на публичный URL, вставить ссылку.
-3. Проверить, что имя «Private Notes» свободно (или взять запасное).
+3. Имя выбрано: «Personal Notes & Tasks» (прежнее «Private Notes» занято —
+   `figma.com/community/plugin/1482292605630548301`). Перед публикацией
+   повторить поиск в Community на случай новых похожих имён.
 4. Убедиться, что `dist/` собран свежим (`pnpm build`) до импорта/публикации —
    публикуется именно `dist/code.js` + `dist/index.html` из манифеста.

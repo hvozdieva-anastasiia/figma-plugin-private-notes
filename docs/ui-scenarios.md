@@ -1,6 +1,6 @@
 # Интерфейс Common Structurizer — сценарии для согласования
 
-> **Архив прежнего проекта Common Structurizer.** Не является действующим решением Private Notes; актуальные документы: [private-notes-architecture.md](private-notes-architecture.md) и [private-notes-implementation-plan.md](private-notes-implementation-plan.md).
+> **Архив прежнего проекта Common Structurizer.** Не является действующим решением Personal Notes & Tasks; актуальные документы: [private-notes-architecture.md](private-notes-architecture.md) и [private-notes-implementation-plan.md](private-notes-implementation-plan.md).
 
 Этап 2. Статус: **предложение**, не утверждённый визуальный дизайн.
 

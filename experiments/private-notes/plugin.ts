@@ -1,4 +1,4 @@
-// Private Notes API probe (stage 2). Plugin Main.
+// Personal Notes & Tasks API probe (stage 2). Plugin Main.
 // Writes only probe-prefixed pluginData on figma.root, never closes the window,
 // never changes visible/locked of any layer and never creates nodes/comments.
 

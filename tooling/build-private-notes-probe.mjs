@@ -1,4 +1,4 @@
-// Builds the stage 2 Private Notes API probe into experiments/private-notes/dist.
+// Builds the stage 2 Personal Notes & Tasks API probe into experiments/private-notes/dist.
 // Uses the real plugin ID from the root manifest.json (read-only) and never
 // writes to the product's root dist or manifest.
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -58,7 +58,7 @@ await writeFile(
 );
 
 const manifest = {
-  name: 'Private Notes — API Probe',
+  name: 'Personal Notes & Tasks — API Probe',
   id,
   api: '1.0.0',
   main: 'code.js',
@@ -73,5 +73,5 @@ await writeFile(
   JSON.stringify(manifest, null, 2) + '\n',
 );
 console.log(
-  `Private Notes API probe built with plugin ID ${id}: experiments/private-notes/dist/manifest.json`,
+  `Personal Notes & Tasks API probe built with plugin ID ${id}: experiments/private-notes/dist/manifest.json`,
 );

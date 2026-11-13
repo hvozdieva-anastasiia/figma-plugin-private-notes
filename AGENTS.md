@@ -1,6 +1,6 @@
-# Private Notes
+# Personal Notes & Tasks
 
-Рабочая папка: D:\Projects\PrivateNotes. Имя продукта: Private Notes.
+Рабочая папка: D:\Projects\PrivateNotes. Имя продукта: Personal Notes & Tasks.
 
 Актуальная архитектура: docs/private-notes-architecture.md, версия 4. Актуальный план: docs/private-notes-implementation-plan.md, версия 4. Пользователь согласовал хранение, UI и алгоритм управления записями в обсуждении; открытые технические решения помечены отдельно. Один этап — одна отдельная рабочая сессия.
 
@@ -15,7 +15,7 @@
 - Создание, редактирование, выполнение/возврат задачи, подтверждаемое удаление и перепривязка без смены ID. При потерянной цели текст сохраняется; нет автоматического перевода в «Весь файл».
 - Шифрование, источник/восстановление ключа, пароль и экран разблокировки не согласованы. Не считать их реализованными или обязательными; выбор фиксируется отдельно до криптографии. Это не блокирует этап 1.
 
-Документы docs/architecture.md, docs/implementation-plan.md, docs/product-decisions.md, docs/ui-scenarios.md, docs/testing-plan.md и эксперимент native-comment-navigation относятся к прежнему Common Structurizer. Сохранить их как старые материалы; не применять к Private Notes как действующие решения. Проверка перехода к комментариям не доказывает работу личных заметок.
+Документы docs/architecture.md, docs/implementation-plan.md, docs/product-decisions.md, docs/ui-scenarios.md, docs/testing-plan.md и эксперимент native-comment-navigation относятся к прежнему Common Structurizer. Сохранить их как старые материалы; не применять к Personal Notes & Tasks как действующие решения. Проверка перехода к комментариям не доказывает работу личных заметок.
 
 ## Инструменты
 

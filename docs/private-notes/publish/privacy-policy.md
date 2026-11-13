@@ -1,8 +1,8 @@
-# Privacy Policy — Private Notes (Figma plugin)
+# Privacy Policy — Personal Notes & Tasks (Figma plugin)
 
 _Last updated: 2026-11-13_
 
-Private Notes is a Figma plugin that stores personal notes and tasks inside
+Personal Notes & Tasks is a Figma plugin that stores personal notes and tasks inside
 the Figma file you are working in. This policy describes exactly what the
 plugin reads, writes, and never does. It reflects the shipped code, not a
 template.

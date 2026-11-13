@@ -1,4 +1,4 @@
-# Private Notes
+# Personal Notes & Tasks
 
 Плагин Figma для личных заметок и задач, привязанных ко всему файлу, к странице или к фрейму. Вы видите только свои записи. Записи лежат внутри самого Figma-файла, поэтому ничего не нужно подключать и вводить: плагин открывается и сразу показывает ваши заметки.
 
@@ -17,7 +17,7 @@ pnpm check
 
 `pnpm check` выполняет проверку типов, линтер, проверку форматирования, тесты и сборку. Результат: `dist/code.js` и `dist/index.html` (всё в один файл, без внешних ресурсов). Если pnpm не установлен глобально, `tooling/pnpm.ps1` запускает его из каталога установленного Node.
 
-Подключение в Figma Desktop: **Plugins → Development → Import plugin from manifest…** и выбрать корневой `manifest.json`. Дальше запуск: **Plugins → Development → Private Notes**. Постоянный plugin ID записан в `manifest.json`; менять его нельзя: сохранённые заметки привязаны к ID плагина. Если ID придётся задать заново, `pnpm plugin:id ЧИСЛОВОЙ_ID` (см. `tooling/plugin-id.mjs`).
+Подключение в Figma Desktop: **Plugins → Development → Import plugin from manifest…** и выбрать корневой `manifest.json`. Дальше запуск: **Plugins → Development → Personal Notes & Tasks**. Постоянный plugin ID записан в `manifest.json`; менять его нельзя: сохранённые заметки привязаны к ID плагина. Если ID придётся задать заново, `pnpm plugin:id ЧИСЛОВОЙ_ID` (см. `tooling/plugin-id.mjs`).
 
 ## Как пользоваться
 
@@ -48,7 +48,7 @@ pnpm check
 - Два окна одного пользователя: разные записи независимы; одну и ту же запись одновременно из двух окон атомарно защитить нельзя, но устаревшее изменение не затирает чужое молча, а даёт конфликт.
 - Проверены только Figma Desktop, один аккаунт и один клиент. Не проверены: синхронизация между клиентами, второй реальный пользователь, браузерный клиент, файлы с сотнями заметок и фреймов в экземплярах компонентов.
 - В выборе другой цели показываются только фреймы верхнего уровня страницы (до 100 по запросу).
-- Старые материалы Common Structurizer (`docs/architecture.md`, `implementation-plan.md`, `product-decisions.md`, `ui-scenarios.md`, `testing-plan.md`, эксперимент `native-comment-navigation`) помечены как архив и к Private Notes не относятся.
+- Старые материалы Common Structurizer (`docs/architecture.md`, `implementation-plan.md`, `product-decisions.md`, `ui-scenarios.md`, `testing-plan.md`, эксперимент `native-comment-navigation`) помечены как архив и к Personal Notes & Tasks не относятся.
 
 ## Разработка
 

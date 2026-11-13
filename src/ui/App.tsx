@@ -73,7 +73,7 @@ export function App() {
 
   return (
     <main className="app">
-      <h1 className="visually-hidden">Private Notes</h1>
+      <h1 className="visually-hidden">Personal Notes & Tasks</h1>
       {state.editor ? (
         <>
           <NoteEditor editor={state.editor} />
