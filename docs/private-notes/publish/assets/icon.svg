@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34373d"/>
+      <stop offset="1" stop-color="#1e2025"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#eef0f4"/>
+    </linearGradient>
+    <linearGradient id="badge" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1aa6ff"/>
+      <stop offset="1" stop-color="#0985e8"/>
+    </linearGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="14" stdDeviation="18" flood-color="#000000" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+
+  <!-- tile -->
+  <rect x="8" y="8" width="496" height="496" rx="116" fill="url(#tile)"/>
+  <rect x="8" y="8" width="496" height="496" rx="116" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="2"/>
+
+  <!-- note card -->
+  <g filter="url(#soft)">
+    <path d="M128 92 h208 l76 76 v236 a28 28 0 0 1 -28 28 H156 a28 28 0 0 1 -28 -28 V120 a28 28 0 0 1 28 -28 z" fill="url(#paper)"/>
+  </g>
+  <!-- folded corner -->
+  <path d="M336 92 l76 76 h-56 a20 20 0 0 1 -20 -20 z" fill="#d6dae2"/>
+
+  <!-- text lines -->
+  <rect x="164" y="196" width="150" height="22" rx="11" fill="#0d99ff"/>
+  <rect x="164" y="242" width="196" height="22" rx="11" fill="#c9cedb"/>
+  <rect x="164" y="288" width="176" height="22" rx="11" fill="#c9cedb"/>
+  <rect x="164" y="334" width="110" height="22" rx="11" fill="#c9cedb"/>
+
+  <!-- lock badge -->
+  <circle cx="396" cy="392" r="72" fill="url(#badge)" stroke="#1e2025" stroke-width="12"/>
+  <g fill="#ffffff">
+    <path d="M396 352 a30 30 0 0 0 -30 30 v12 h16 v-12 a14 14 0 1 1 28 0 v12 h16 v-12 a30 30 0 0 0 -30 -30 z"/>
+    <rect x="362" y="390" width="68" height="52" rx="12"/>
+    <circle cx="396" cy="410" r="7" fill="#0985e8"/>
+    <rect x="392" y="412" width="8" height="16" rx="4" fill="#0985e8"/>
+  </g>
+</svg>
