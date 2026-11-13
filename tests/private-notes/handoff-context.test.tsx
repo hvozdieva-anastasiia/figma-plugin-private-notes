@@ -174,7 +174,8 @@ describe('Smart Context in the window', () => {
     for (const text of ['Outer note', 'Inner note', 'Cart note', 'Page note']) {
       expect(screen.getByText(text)).toBeInTheDocument();
     }
-    expect(screen.getAllByText('Here')).toHaveLength(2);
+    expect(screen.getAllByText('In the current selection')).toHaveLength(2);
+    expect(screen.queryByText('Here')).not.toBeInTheDocument();
   });
 
   it('filters to the working frame and its nested frames on request', async () => {
@@ -225,7 +226,9 @@ describe('Smart Context in the window', () => {
       screen.getByText(/Now: Page · Mobile \(and its frames\).*2 notes here/),
     ).toBeInTheDocument();
     // On a page the notes are not marked one by one.
-    expect(screen.queryByText('Here')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('In the current selection'),
+    ).not.toBeInTheDocument();
   });
 });
 

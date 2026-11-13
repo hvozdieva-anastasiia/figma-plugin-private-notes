@@ -441,9 +441,25 @@ textarea {
   color: var(--danger);
 }
 
-.note__meta--here {
-  color: var(--brand);
-  font-weight: 600;
+.note--here {
+  background: color-mix(in srgb, var(--brand) 9%, transparent);
+}
+
+.note--here:hover {
+  background: color-mix(in srgb, var(--brand) 15%, transparent);
+}
+
+/* A small dot, so that the mark does not rely on the tint alone. */
+.note--here::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  top: 12px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--brand);
+  pointer-events: none;
 }
 
 .link {
@@ -680,6 +696,11 @@ textarea {
   min-width: 0;
 }
 
+.icon-btn--danger,
+.icon-btn--danger:hover:not(:disabled) {
+  color: var(--danger);
+}
+
 .icon-btn--primary {
   background: var(--brand);
   color: var(--on-brand);
@@ -743,15 +764,26 @@ textarea {
   flex-direction: column;
   gap: 8px;
   margin: 0 -12px;
-  padding: 8px 12px 28px;
+  /* The bottom edge is left for the resize handle. */
+  padding: 8px 12px 20px;
   border-top: 1px solid var(--border);
   background: var(--bg);
 }
 
 .bulk__row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
+  gap: 4px 8px;
+}
+
+.bulk__tools {
+  display: flex;
+  gap: 2px;
+}
+
+.bulk__all {
+  margin-left: auto;
 }
 
 .bulk__count {

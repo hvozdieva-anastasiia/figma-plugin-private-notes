@@ -64,3 +64,26 @@ export const SearchIcon = () => (
     <path d="M10 10l3 3" />
   </Icon>
 );
+export const DoneIcon = () => (
+  <Icon>
+    <circle cx="8" cy="8" r="5.5" />
+    <path d="M5.8 8.2l1.6 1.6 2.9-3.4" />
+  </Icon>
+);
+export const ReopenIcon = () => (
+  <Icon>
+    <path d="M3.5 6.5h6a3 3 0 0 1 0 6H6M6 4L3.5 6.5 6 9" />
+  </Icon>
+);
+export const MoveIcon = () => (
+  <Icon>
+    <path d="M2.5 12V4a.5.5 0 0 1 .5-.5h3.2l1.5 1.5H13a.5.5 0 0 1 .5.5v6.5a.5.5 0 0 1-.5.5H3a.5.5 0 0 1-.5-.5z" />
+    <path d="M6 9h4M8.5 7.5L10 9l-1.5 1.5" />
+  </Icon>
+);
+export const CopyIcon = () => (
+  <Icon>
+    <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+    <path d="M10.5 5.5V4A1.5 1.5 0 0 0 9 2.5H4A1.5 1.5 0 0 0 2.5 4v5A1.5 1.5 0 0 0 4 10.5h1.5" />
+  </Icon>
+);

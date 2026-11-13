@@ -1,6 +1,7 @@
 import { count } from '../labels';
 import { useNotes } from '../NotesProvider';
 import { useVisibleNotes } from '../visible';
+import { CopyIcon, DoneIcon, MoveIcon, ReopenIcon, TrashIcon } from './Icons';
 import { TargetField } from './TargetField';
 import { TargetPicker } from './TargetPicker';
 
@@ -26,9 +27,63 @@ export function BulkBar() {
         <p className="bulk__count" aria-live="polite">
           {none ? 'Nothing selected' : `${selected.length} selected`}
         </p>
+        {bulk.panel === 'none' ? (
+          <div className="bulk__tools" role="group" aria-label="Actions">
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label="Mark done"
+              title="Mark the selected tasks as done"
+              disabled={tasks.length === 0 || bulk.busy}
+              onClick={() => void actions.bulkStatus('done')}
+            >
+              <DoneIcon />
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label="Reopen"
+              title="Reopen the selected tasks"
+              disabled={tasks.length === 0 || bulk.busy}
+              onClick={() => void actions.bulkStatus('open')}
+            >
+              <ReopenIcon />
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label="Move to…"
+              title="Move the selected notes to another page or frame"
+              disabled={none || bulk.busy}
+              onClick={() => actions.openBulkPanel('move')}
+            >
+              <MoveIcon />
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              aria-label="Copy as Markdown"
+              title="Copy the selected notes as Markdown"
+              disabled={none || bulk.busy}
+              onClick={() => void actions.copyMarkdown()}
+            >
+              <CopyIcon />
+            </button>
+            <button
+              type="button"
+              className="icon-btn icon-btn--danger"
+              aria-label="Delete"
+              title="Delete the selected notes"
+              disabled={none || bulk.busy}
+              onClick={() => actions.openBulkPanel('delete')}
+            >
+              <TrashIcon />
+            </button>
+          </div>
+        ) : null}
         <button
           type="button"
-          className="link"
+          className="link bulk__all"
           onClick={() =>
             allVisible
               ? actions.selectOnly([])
@@ -38,51 +93,6 @@ export function BulkBar() {
           {allVisible ? 'Clear' : `Select all (${visible.length})`}
         </button>
       </div>
-
-      {bulk.panel === 'none' ? (
-        <div className="bulk__actions" role="group" aria-label="Actions">
-          <button
-            type="button"
-            className="btn"
-            disabled={tasks.length === 0 || bulk.busy}
-            onClick={() => void actions.bulkStatus('done')}
-          >
-            Mark done
-          </button>
-          <button
-            type="button"
-            className="btn"
-            disabled={tasks.length === 0 || bulk.busy}
-            onClick={() => void actions.bulkStatus('open')}
-          >
-            Reopen
-          </button>
-          <button
-            type="button"
-            className="btn"
-            disabled={none || bulk.busy}
-            onClick={() => actions.openBulkPanel('move')}
-          >
-            Move to…
-          </button>
-          <button
-            type="button"
-            className="btn"
-            disabled={none || bulk.busy}
-            onClick={() => void actions.copyMarkdown()}
-          >
-            Copy as Markdown
-          </button>
-          <button
-            type="button"
-            className="btn btn--danger-text"
-            disabled={none || bulk.busy}
-            onClick={() => actions.openBulkPanel('delete')}
-          >
-            Delete
-          </button>
-        </div>
-      ) : null}
 
       {bulk.panel === 'move' ? (
         <div

@@ -24,7 +24,7 @@ export function NoteItem({
   const selecting = state.selection.active;
   const selected = state.selection.ids.includes(note.id);
   const { target } = note;
-  // Marked only when a frame is being worked on; the page's own notes need no mark.
+  // Tinted only when a frame is being worked on; the page's own notes need no mark.
   const here =
     state.scope === 'all' &&
     state.context?.focusFrame != null &&
@@ -40,7 +40,7 @@ export function NoteItem({
 
   return (
     <li
-      className={`note${done ? ' note--done' : ''}${selected ? ' note--selected' : ''}`}
+      className={`note${done ? ' note--done' : ''}${selected ? ' note--selected' : ''}${here ? ' note--here' : ''}`}
       aria-busy={busy}
     >
       {selecting ? (
@@ -69,7 +69,9 @@ export function NoteItem({
       ) : null}
       <div className="note__body">
         <p className="note__text">{note.text}</p>
-        {here ? <p className="note__meta note__meta--here">Here</p> : null}
+        {here ? (
+          <span className="visually-hidden">In the current selection</span>
+        ) : null}
         {showTarget || missing ? (
           <p className="note__meta">
             {targetLabel(note.target)}
