@@ -34,12 +34,7 @@
   <rect x="164" y="288" width="176" height="22" rx="11" fill="#c9cedb"/>
   <rect x="164" y="334" width="110" height="22" rx="11" fill="#c9cedb"/>
 
-  <!-- lock badge -->
+  <!-- task badge -->
   <circle cx="396" cy="392" r="72" fill="url(#badge)" stroke="#1e2025" stroke-width="12"/>
-  <g fill="#ffffff">
-    <path d="M396 352 a30 30 0 0 0 -30 30 v12 h16 v-12 a14 14 0 1 1 28 0 v12 h16 v-12 a30 30 0 0 0 -30 -30 z"/>
-    <rect x="362" y="390" width="68" height="52" rx="12"/>
-    <circle cx="396" cy="410" r="7" fill="#0985e8"/>
-    <rect x="392" y="412" width="8" height="16" rx="4" fill="#0985e8"/>
-  </g>
+  <path d="M366 393 l21 21 40 -45" fill="none" stroke="#ffffff" stroke-width="15" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

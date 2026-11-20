@@ -16,8 +16,9 @@ export function NoteList() {
       <div className="empty">
         <p className="empty__title">No notes yet</p>
         <p className="empty__hint">
-          Press + to add a note. Only you can see it, and it does not appear in
-          the file as a layer or a comment.
+          Press + to add a note. This plugin shows your account’s records,
+          without layers or comments. Notes are stored in the file and are not
+          encrypted.
         </p>
       </div>
     );

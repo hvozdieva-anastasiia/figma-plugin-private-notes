@@ -1,79 +1,90 @@
-# Privacy Policy — Personal Notes & Tasks (Figma plugin)
+# Privacy Policy — Personal Notes & Tasks
 
-_Last updated: 2026-11-13_
+Last updated: 2026-11-20
 
-Personal Notes & Tasks is a Figma plugin that stores personal notes and tasks inside
-the Figma file you are working in. This policy describes exactly what the
-plugin reads, writes, and never does. It reflects the shipped code, not a
-template.
+Personal Notes & Tasks is a Figma Design plugin maintained in the
+[hvozdieva-anastasiia/figma-plugin-private-notes repository](https://github.com/hvozdieva-anastasiia/figma-plugin-private-notes).
+It associates notes and tasks with a file, page, or frame. The plugin filters
+records by their author's Figma account. It does not encrypt them or provide
+a confidential storage service.
 
-## What the plugin stores
+## Data used and stored
 
-| Data                                                                                               | Where it lives                                                                                                         | Who can see it via the plugin   |
-| -------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| Your notes and tasks (text, kind, open/done status, target, timestamps, internal revision counter) | The Figma file's own plugin data (`pluginData` on the document root), one record per note, keyed by your Figma user ID | Only you, in your plugin window |
-| Plugin window size and your list view preference ("All notes" / "Current selection")               | `figma.clientStorage` on your machine                                                                                  | Only you                        |
-| Your Figma user ID                                                                                 | Read from `figma.currentUser.id` at runtime to namespace your records; used in storage keys                            | Used internally only            |
+The plugin reads your Figma user ID from `figma.currentUser.id` to identify
+your records. It does not read your account email, name, or profile photo.
 
-A note record contains: note ID, your Figma user ID (as author), kind
-(note/task), text, task status, the target (file / page ID+name / frame
-ID+name+page), timestamps, and a revision counter.
+Each record contains the note ID, author ID, note/task type, text, task status,
+target type, page/frame IDs and name snapshots, creation/update timestamps,
+schema version, and revision number. It is stored as JSON in the Figma file's
+document-root plugin data, one key per record. Your ID is in the key and value.
 
-## What the plugin reads from Figma
+The plugin reads page names and IDs, the current selection and ancestor frames,
+and target names and IDs to group notes and navigate. The target picker lists
+pages and top-level frames on a requested page; known targets are resolved by
+ID. The plugin does not export artwork or read design text-layer contents.
 
-- `figma.currentUser.id` — to scope your notes to you (declared as the
-  `currentuser` permission in the manifest).
-- Page and frame IDs and names — only the ones needed to resolve, list, and
-  navigate to note targets you chose. The document tree is not scanned;
-  targets are looked up by ID on demand and in bounded batches.
-- The current page and current selection — to show the "Now:" context line
-  and the "Current selection" scope.
+Window dimensions and the All notes / Current selection preference are stored
+in Figma's `clientStorage`; note text is not. Unsaved drafts are held in the
+plugin window's memory and are not a persistent backup.
 
-## What the plugin never does
+## Network access and Figma hosting
 
-- **No network access.** The manifest declares `allowedDomains: ["none"]`.
-  The plugin makes no HTTP requests, opens no sockets, sends no analytics,
-  telemetry, or crash reports. Nothing leaves the file or your machine.
-- **No third parties.** There is no backend, no account system, no external
-  database, no CDN, no tracking pixel.
-- **No document mutation beyond its own storage keys.** The plugin creates no
-  layers, comments, mentions, or shared/plugin-visible content in the file.
-- **No logging of note contents.** The code contains no calls that write note
-  text to consoles or logs.
-- **No cookies, no localStorage tracking.** `clientStorage` holds only the
-  window size and the list-scope toggle.
+The plugin declares no network access (`allowedDomains: ["none"]`) and makes
+no application-level network requests. It has no developer-operated backend,
+analytics, advertising, telemetry, or automatic crash reporting. The plugin
+does not send note contents to its maintainer.
 
-## Who can see your notes — the honest version
+Figma stores and synchronizes the file and its plugin data through Figma's own
+services. No-network permission for this plugin does not disable Figma sync,
+file history, backups, or processing. Figma's handling of data is governed by
+[Figma's Privacy Policy](https://www.figma.com/legal/privacy/).
 
-- Through the plugin, notes are visible only to the Figma account that wrote
-  them. Every read and every write is scoped to the current user ID taken
-  from Figma at runtime; other users' records are never read or sent to your
-  window.
-- **Notes are not encrypted.** They are stored as plugin data inside the
-  file. Figma's plugin data is a storage mechanism, not a secrets container:
-  another plugin, or code with access to the file via the Figma API, could
-  technically read values stored under this plugin's keys. Do not store
-  passwords, credentials, personal data of third parties, or other secrets
-  in notes.
-- Notes travel with the file through Figma's normal sync and backup
-  mechanisms. Anyone who can open the file in Figma sees their own notes
-  only — yours remain invisible to them inside this plugin.
+## Visibility and security limits
 
-## Data retention and deletion
+In normal use of this plugin, each Figma account sees and manages its own
+records. Author checks run in Plugin Main; the window cannot choose an author
+ID. This is application-level filtering, not encryption or a separate file
+access-control boundary.
 
-- Deleting a note in the plugin removes its stored record immediately.
-- Deleting the Figma file deletes all notes stored in it.
-- Uninstalling the plugin does not delete notes already stored in files;
-  they remain inside those files' plugin data.
-- `clientStorage` entries (window size, list view preference) can be cleared
-  by removing the plugin's local storage or reinstalling.
+Figma namespaces plugin data by plugin ID: other plugin IDs cannot read it
+through `getPluginData`. However, Figma explicitly warns that this storage is
+not a security mechanism. A person with sufficient file access may inspect
+data, for example through a file export or authorized API access. Notes may
+also accompany file copies. Do not store passwords, credentials, or other
+sensitive secrets. See Figma's
+[plugin-data documentation](https://developers.figma.com/docs/plugins/api/properties/nodes-setplugindata/)
+and [REST file API](https://developers.figma.com/docs/rest-api/file-endpoints/).
 
-## Changes
+## Copying and support
 
-This policy is updated when the storage behavior changes. The version in
-force is the one shipped with the plugin source repository.
+Copy as Markdown writes selected records to your system clipboard only after
+you choose that action. If access fails, the plugin displays text for manual
+copying. Clipboard history, clipboard synchronization, and apps you paste into
+have their own data handling. The plugin does not automatically upload it.
 
-## Contact
+Information you choose to send to support is processed by the support platform.
+GitHub issues are public: do not include note contents, credentials, private
+file links, or personal information in a report.
 
-Support / privacy contact:
-https://github.com/hvozdieva-anastasiia/figma-plugin-private-notes/issues
+## Retention and deletion
+
+Notes remain in the file until you delete them or the file is removed under
+Figma's lifecycle. Closing or uninstalling the plugin does not erase notes.
+No automatic expiration is implemented.
+
+Deleting a note removes its key from the current document state. Figma Undo,
+version history, backups, exports, and existing file copies may retain or
+restore previous data; this is not guaranteed permanent erasure. File deletion
+and recovery follow Figma's retention rules. The maintainer has no separate
+note database to erase or recover.
+
+Window/view preferences are managed through Figma client storage. The plugin
+has no in-app reset and does not promise that reinstalling clears that storage.
+
+## Changes and contact
+
+This policy will be updated when data handling changes, alongside the release.
+For support or a privacy inquiry, use the
+[project issue tracker](https://github.com/hvozdieva-anastasiia/figma-plugin-private-notes/issues).
+For a sensitive inquiry, first request a private contact method without
+posting the sensitive information itself.

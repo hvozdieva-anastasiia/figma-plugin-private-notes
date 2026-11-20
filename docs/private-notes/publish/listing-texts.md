@@ -1,185 +1,214 @@
-# Personal Notes & Tasks — тексты для формы публикации Figma Community
+# Personal Notes & Tasks — поля публикации
 
-Все поля ниже готовы к копированию. Английский текст — то, что вставляется в
-форму; русские пометки — пояснения, в форму не вставляются.
+Английские блоки готовы для вставки; русские пояснения остаются в проекте.
+Сверено с реализацией и официальным потоком classic plugins 2026-11-20.
+Отправки на ревью не было.
 
-Форма открывается в Figma Desktop: Community → Publish → Plugins → выбрать
-проект плагина. Поля формы у Figma периодически меняются; ниже покрыт полный
-набор, который встречается в актуальном потоке публикации.
+## Name
 
----
-
-## 1. Plugin name
-
-```
+```text
 Personal Notes & Tasks
 ```
 
-Совпадает с `manifest.json` → `"name": "Personal Notes & Tasks"`.
+Совпадает с manifest. ID `1702711724935928027` не менять.
+Имя уже принято в проекте; перед отправкой повторно проверить Community.
+Поиск не гарантирует юридическую или техническую доступность имени.
 
-Имя выбрано 2026-11-13. Контекст: прежнее имя «Private Notes» оказалось занятым —
-в Community уже опубликован одноимённый плагин той же ниши
-(`figma.com/community/plugin/1482292605630548301`, март 2025, автор Shriya),
-есть и «Private Comments – Personal Notes in Figma». Одноимённый плагин в той же
-категории — риск отказа как confusingly-similar и плохая находимость в поиске.
+## Tagline
 
-Лочится только `id` в manifest (к нему привязаны сохранённые заметки) — поле
-`name` менять безопасно, ключи хранения (`private_notes_note_`, `private-notes:*`)
-имени не содержат и не меняются. «Personal Notes & Tasks» свободно по результатам
-поиска в Community; перед самой публикацией проверить повторно на случай новых
-публикаций с похожим именем.
-
-## 2. Tagline
-
-```
-Personal notes and tasks inside the file — for your eyes only
+```text
+Your notes and tasks, organized by file, page, and frame
 ```
 
-Запасной вариант (если лимит короче):
+Короткий вариант:
 
-```
-Notes & tasks inside the file — for your eyes only
+```text
+Notes and tasks alongside your designs
 ```
 
-## 3. Description (основное описание)
+## Short description
+
+Если форма предлагает отдельное краткое описание:
+
+```text
+Keep personal notes and tasks in your Figma file. Find them by page or frame, track progress, and copy selected notes as Markdown.
+```
+
+## Description
 
 ```markdown
-Personal Notes & Tasks is a private scratchpad and task list that lives inside the
-Figma file you are working in. Every note is anchored to a target you choose —
-the whole file, a page, or a specific frame — so feedback, TODOs and design
-reminders sit right next to the work they belong to.
+Keep design reminders and tasks close to the work they belong to.
 
-Your notes are yours alone: they are stored per Figma account, and teammates
-who open the same file see only their own notes. Nothing is created in the
-document — no layers, no comments, no mentions — so collaborators never notice
-a thing.
+Personal Notes & Tasks organizes your notes in one list inside Figma Design.
+Attach each record to the whole file, a page, or a frame. In this plugin,
+each Figma account sees its own records; no comments or canvas layers are created.
 
 WHAT YOU CAN DO
 
-• Attach a note to the whole file, a page, or any frame. Jump back to the
-target with one click.
-• Turn a note into a task with an open/done checkbox. Done tasks stay in the
-list instead of disappearing.
-• One grouped, collapsible list with counters, full-text search (text and
-target names) and filters: All / Notes / Open / Done.
-• "Current selection" scope follows your work: select a frame on the canvas
-and instantly see only its notes — including notes on frames nested inside.
-• Bulk select: mark tasks done, reopen, move notes to another target, delete —
-or copy the selection as Markdown to hand off to docs or chat.
-• Resilient to edits: renamed or moved targets are followed automatically;
-deleted targets move notes to "No available target" with the text intact and
-a Rebind action. Save conflicts (two windows, Undo/Redo) show both versions
-and let you choose instead of overwriting silently.
-• Small comforts: resizable window that remembers its size, list refresh on
-window focus, Ctrl+Enter to save.
+• Write notes and tasks, edit their text, and mark tasks open or done.
+• Browse a grouped, collapsible list with counts, text/target search, and
+All / Notes / Open / Done filters.
+• Switch to Current selection to see records for your working frame,
+including nested frames. Selecting a layer uses its nearest frame.
+• Jump from a note to its page or frame.
+• Select records or groups to mark tasks done, reopen them, rebind targets,
+delete with confirmation, or copy the selection as Markdown.
+• Keep note text when a target is deleted and use Rebind to choose a new one.
+• Refresh on return to the window. A detected stale edit offers conflict
+choices before you save again.
+• Resize the window and keep your preferred list scope between runs.
 
-PRIVACY, IN PLAIN TERMS
+HOW TO START
 
-• Notes are stored in the file's own plugin data under your Figma user ID, so
-they sync with the file like any other plugin data. The plugin window only
-ever shows your own records.
-• Notes are NOT encrypted. Figma plugin data is a storage mechanism, not a
-secrets vault: other plugins or API access to the file could technically
-read it. Do not store passwords, keys, or secrets in notes.
-• Zero network access (declared in the manifest). No analytics, no tracking,
-no external accounts, nothing leaves the file.
-• Writing notes requires edit access to the file. View-only mode cannot save
-notes.
+1. Open an editable Figma Design file and run Personal Notes & Tasks.
+2. Press +, choose Note or Task, and check the Target above the editor.
+3. Write your text and press Save, or Ctrl+Enter / Cmd+Enter.
+4. Use search, filters, and Current selection to find the records you need.
 
-LIMITS
+STORAGE AND PRIVACY
 
-• Up to 500 notes per user per file, up to 4,000 characters per note.
-• Figma's Undo treats one plugin run as one step: a single Ctrl+Z can revert
-all notes written in that session. The window always shows the real document
-state on refresh.
+Records are stored in the Figma file's plugin data under their author's
+Figma user ID. Figma synchronizes them with the file. This plugin makes no
+network requests and has no external account, backend, analytics, or tracking.
+Copy as Markdown exports selected text to your clipboard when you request it.
 
-Free. English UI.
+Notes are not encrypted. Showing only your account's records in this plugin
+does not make the underlying file data confidential. Someone with sufficient
+file or API access may be able to inspect it. Do not store passwords or secrets.
+
+REQUIREMENTS AND LIMITS
+
+• Figma Design with edit access. English interface.
+• Up to 500 records per account per file and 4,000 characters per record.
+• The target picker lists top-level frames on a chosen page. To target a nested
+frame, select it on the canvas before opening a new note.
+• Canvas selection does not change the target of an already-open editor.
+• Figma Undo can revert multiple note changes from one plugin session.
+• Revision checks detect stale edits after changes are visible locally;
+simultaneous edits across clients are not guaranteed conflict-free.
+
+Privacy policy:
+https://github.com/hvozdieva-anastasiia/figma-plugin-private-notes/blob/main/docs/private-notes/publish/privacy-policy.md
+
+Help and support:
+https://github.com/hvozdieva-anastasiia/figma-plugin-private-notes/issues
 ```
 
-## 4. How to use (инструкция — для description или отдельного блока)
+Перед публикацией выложить исправленную policy: по публичному URL пока доступна
+прежняя редакция от 2026-11-13. `Free` добавить после подтверждения цены в форме.
+
+## How to use
+
+Для отдельного поля документации или страницы справки:
 
 ```markdown
-1. Open the file you want to annotate, then run Plugins → Personal Notes & Tasks.
-2. Press + to create a note. Choose Note or Task, pick a Target
-   (the selected frame, the current page, the whole file, or "Choose another
-   page or frame…" to search), write the text, Save (or Ctrl+Enter).
-3. Browse: the list groups notes under Whole file → Page → Frame. Collapse
-   groups, use search and the All / Notes / Open / Done filters.
-4. Jump to work: the → button on a page or frame note switches to that page
-   and scrolls the frame into view.
-5. Work in context: select a frame on the canvas and switch to
-   "Current selection" to see only its notes. The "Now:" line shows where you
-   are and how many notes are there.
-6. Tasks: tick a task's checkbox to mark it done; click again to reopen.
-7. Bulk actions: press Select, tick notes or whole groups, then mark done /
-   reopen / move / delete — or Copy as Markdown to paste the notes into docs,
-   tickets, or chat.
-8. Housekeeping: deleted targets move notes to "No available target" — open
-   one and press Rebind to attach it elsewhere. The window resizes from the
-   bottom-right corner and remembers its size.
+1. Run the plugin in an editable Figma Design file.
+2. Press + and choose Note or Task. A single selected frame is the default
+   target; otherwise the current page is used. Choose Whole file explicitly.
+3. Use Target to change the binding, or choose another page or frame.
+   The picker lists top-level frames on the requested page. For a nested
+   frame, select that frame before creating a record.
+4. Save with Save or Ctrl+Enter / Cmd+Enter. Changing the canvas selection
+   while editing will not change the chosen target.
+5. Search by text or target name. Filter All / Notes / Open / Done, and
+   collapse groups to focus the list.
+6. Use Current selection for the working frame and its nested-frame notes.
+   Without a working frame, the current page provides the context.
+7. Tick a task to mark it done; untick to reopen. Use the arrow action on a
+   page/frame record to navigate to its target.
+8. Press Select to choose records or groups. Use the bottom action bar for
+   bulk changes, confirmed deletion, or Copy as Markdown.
+9. Deleted targets keep their notes in No available target. Use Rebind to
+   choose a replacement. Refresh if names or contents look out of date.
+10. If an edit conflicts, review your draft and the stored version before
+    continuing. Copy important draft text before closing Figma.
 ```
 
-## 5. Tags / категории
+## Category and tags
 
-Форма Figma даёт выбрать теги из фиксированного списка. Искать и выбирать:
+Предлагаемая категория — `Design tools`; подобрать доступную подкатегорию для
+productivity/organization. Не считать это фиксированным списком формы.
 
-- `productivity` / `utilities` — основная категория
-- `notes` / `tasks` / `todo` — если есть в списке
-- `collaboration` — вторично (заметки личные, но про совместную работу над файлом)
+Предлагаемые теги: `notes`, `tasks`, `todo`, `design review`, `handoff`.
+Figma допускает собственные теги; их не обязательно выбирать из подсказок.
 
-Не выбирать: design, prototyping, AI, developer tools — нерелевантные теги
-увеличивают риск отклонения как «misleading categorization».
+## Images
 
-## 6. Media (иконка, обложка, карусель)
+| Поле      | Файл                                        | Размер        |
+| --------- | ------------------------------------------- | ------------- |
+| Icon      | `assets/icon-128.png`                       | 128×128 PNG   |
+| Thumbnail | `assets/cover.png`                          | 1920×1080 PNG |
+| Carousel  | `assets/slide-1.png` … `assets/slide-5.png` | 1920×1080 PNG |
 
-Файлы лежат в `docs/private-notes/publish/assets/`:
+Порядок: список → Smart Context → создание → массовые действия → конфликт.
+Есть `icon-512.png`, SVG и чистые изображения `ui-shots/`. UI снят из собранного
+приложения с демонстрационными данными. Холст и рамка окна — оформление;
+это не снимки работающего Figma Desktop. Подробности в README пакета.
 
-| Поле формы                        | Файл                                 | Размер        |
-| --------------------------------- | ------------------------------------ | ------------- |
-| Plugin icon                       | `assets/icon-128.png`                | 128×128 PNG   |
-| Cover image                       | `assets/cover.png`                   | 1920×960 PNG  |
-| Media / screenshots (до 9–10 шт.) | `assets/slide-1.png` … `slide-5.png` | 1920×1080 PNG |
+## Support contact
 
-Порядок карусели: slide-1 (список) → slide-2 (Smart Context) → slide-3
-(создание) → slide-4 (массовые действия) → slide-5 (конфликт/устойчивость).
-
-Иконка в большом размере для профиля/других мест: `assets/icon-512.png`.
-Исходник иконки: `assets/icon.svg` (редактируется как код).
-Дополнительные чистые скриншоты UI (без рамки окна) — `assets/ui-shots/*.png`.
-
-## 7. Privacy policy URL
-
+```text
+https://github.com/hvozdieva-anastasiia/figma-plugin-private-notes/issues
 ```
+
+## Privacy policy URL
+
+```text
 https://github.com/hvozdieva-anastasiia/figma-plugin-private-notes/blob/main/docs/private-notes/publish/privacy-policy.md
 ```
 
-Репозиторий публичный — URL работает сразу после push. Альтернатива
-покрасивее: GitHub Pages на тот же файл (включается в Settings → Pages),
-но blob-URL достаточен и уже живой.
+Публичный репозиторий и старая policy подтверждены через GitHub. Перед отправкой
+проверить обе ссылки без авторизации и наличие обновлённого текста.
 
-## 8. Support / contact
+## Pricing and final details
 
+В реализации нет платежей или платных функций. Предлагается `Free`;
+окончательный выбор в форме остаётся за владельцем. Также выбрать автора
+публикации, участников и разрешение комментариев. Playground не подготовлен,
+он необязателен; изображения не являются playground-файлом.
+
+## Permission justification
+
+```text
+The currentuser permission is used only to read figma.currentUser.id.
+Plugin Main uses this ID to scope storage and every note operation to the
+current author. The UI cannot supply an author ID. The plugin does not read
+profile names, email addresses, or avatars, and makes no network requests.
+Records are not encrypted; this is per-account filtering within the plugin.
 ```
-Support: https://github.com/hvozdieva-anastasiia/figma-plugin-private-notes/issues
+
+## Initial release notes
+
+```text
+Initial release: notes and tasks grouped by file, page, and frame; search and
+status filters; selection-aware context; target navigation and rebinding;
+bulk actions; Markdown copying; resizable window; and stale-edit conflict
+handling. Records are stored in the Figma file and are not encrypted.
 ```
 
-Строку можно добавить в конец description или в поле поддержки формы —
-issue-трекер репозитория, email не требуется.
+## Message for the reviewer
 
-## 9. Pricing
+Если есть поле пояснения или ревьюер запросит детали:
 
+```text
+This classic Figma Design plugin stores notes and tasks in document-root
+plugin data. It creates no canvas layers or native comments. The currentuser
+permission supplies only the author ID for per-account filtering, and
+network access is set to none.
+
+To test: run in an editable file, create a note and a task at file/page/frame
+scope, search/filter them, navigate to a frame, change task status, use bulk
+selection and Copy as Markdown, then delete a test frame and rebind its note.
+
+Storage is not encrypted. The listing and privacy policy state this explicitly.
+Revision checks handle stale local edits; they do not promise atomic
+cross-client conflict resolution.
 ```
-Free
-```
 
-(Платный плагин нельзя потом сделать бесплатным; бесплатный → платный через
-обновление тоже ограничен — решение за вами, но продукт позиционировался как
-бесплатный.)
+## Основание полей
 
-## 10. Permissions justification (если форма спросит, зачем `currentuser`)
-
-```
-The plugin needs figma.currentUser.id to scope each note to its author: notes
-are stored in the file's plugin data keyed by the author's Figma user ID, so
-every collaborator sees only their own notes. No other user data is read.
-```
+Официальная [инструкция classic plugins](https://help.figma.com/hc/en-us/articles/360042293394-Publish-classic-plugins-to-the-Figma-Community)
+перечисляет имя, tagline, описание, категорию, иконку, thumbnail, карусель,
+необязательный security disclosure и поддержку. Рекомендуемые размеры:
+128×128 и 1920×1080; до девяти дополнительных медиа. Нужны Desktop и 2FA.
+Теги сверены с [рекомендациями Community](https://help.figma.com/hc/en-us/articles/22166943560983-Grow-your-audience-on-Community).

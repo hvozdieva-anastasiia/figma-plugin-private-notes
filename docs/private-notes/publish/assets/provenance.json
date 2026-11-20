@@ -1,0 +1,144 @@
+{
+  "product": "Personal Notes & Tasks",
+  "method": "Compiled production UI in headless Edge with fixture Plugin Main messages; artwork is a composed illustration, not a live Figma screenshot.",
+  "bundleSha256": "352728eea504991cf8f3038377370a2dade148615285651e92a92b179d5bf64f",
+  "pluginMainSha256": "b28215897378529d95017f161a1e9c6811179ee1a9d0aadf6558d2dccf236ce4",
+  "fixtureSha256": "a284102b3056e497ebb8a381d2affcea088464f765004933bd9562f0b941977b",
+  "artworkSourceSha256": "352290431c94e296c1d9f1203a8830c1de48286bf7fe6a44b6507a9813a99a66",
+  "iconSourceSha256": "33ce2578d62302eb9d55af76194bfba0493e6a7df9f038530dfb91e126c6aa19",
+  "files": [
+    {
+      "file": "ui-shots/list.png",
+      "width": 1040,
+      "height": 1280,
+      "bytes": 119399,
+      "sha256": "f1942a0972550496173727a63f606a37fc22b9e3a213ca5f7ce759f41cbbf781"
+    },
+    {
+      "file": "ui-shots/empty.png",
+      "width": 1040,
+      "height": 960,
+      "bytes": 44587,
+      "sha256": "9ddef16ed153bf919ec269ed56c75d09b9a092687213512db1aa833bfcca371a"
+    },
+    {
+      "file": "ui-shots/search.png",
+      "width": 1040,
+      "height": 1280,
+      "bytes": 44804,
+      "sha256": "16c3aed72162148a8f014b733cf96364fbcc97800f0da3fc3896b2898abbd38c"
+    },
+    {
+      "file": "ui-shots/create.png",
+      "width": 1040,
+      "height": 1280,
+      "bytes": 30874,
+      "sha256": "e695ce448b5f99bdac32bc077fd734cfdb71a4e2bcbdaf66aa1f2e6ace750066"
+    },
+    {
+      "file": "ui-shots/edit.png",
+      "width": 1040,
+      "height": 1120,
+      "bytes": 25462,
+      "sha256": "8c805e8e47c6f99fd7a924a914f0676ebf3aec80cc8e7cbdab076821e79892c8"
+    },
+    {
+      "file": "ui-shots/picker.png",
+      "width": 1040,
+      "height": 1520,
+      "bytes": 52616,
+      "sha256": "8d4b529c6d4ddebcc933c21ea19917ddce6fedd7d1d2e53859cd7d9c015164a5"
+    },
+    {
+      "file": "ui-shots/bulk.png",
+      "width": 1040,
+      "height": 1280,
+      "bytes": 127186,
+      "sha256": "dfc234085f2d6fb50ff1cc4a0ecefd343e209dc5cf896b92dff453b2145b2dba"
+    },
+    {
+      "file": "ui-shots/export.png",
+      "width": 1040,
+      "height": 1280,
+      "bytes": 125487,
+      "sha256": "30f46e616147ff947b085fafbd452839291ff442ca0d9e8a10bb6e4d4c4f588a"
+    },
+    {
+      "file": "ui-shots/scope.png",
+      "width": 1040,
+      "height": 1040,
+      "bytes": 59886,
+      "sha256": "49b7ae2d4bc410f512e9556213bb55e90e10167bdc4e370fd17d888b90c5df69"
+    },
+    {
+      "file": "ui-shots/del.png",
+      "width": 1040,
+      "height": 1280,
+      "bytes": 121183,
+      "sha256": "a7aaea10071a6668fd046487decbdb1b666d55a9e0f9abcbc64ecebfc6d7e064"
+    },
+    {
+      "file": "ui-shots/conflict.png",
+      "width": 1040,
+      "height": 1280,
+      "bytes": 50583,
+      "sha256": "ff4d1156554d55112988b0aeb603dc36b33f9475d30268544d6434e1966a5567"
+    },
+    {
+      "file": "cover.png",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 331961,
+      "sha256": "a8eb82c4a887d5c3627efab19f8af992972b6b32c796373bb83a22e1be26ee24"
+    },
+    {
+      "file": "slide-1.png",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 320603,
+      "sha256": "8684cb91c4f2159de01fa02d467cf59b92bb0dc5902346528675dcbbe2cc81ff"
+    },
+    {
+      "file": "slide-2.png",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 300490,
+      "sha256": "13861af45354ddf260cc8333c56f0ff1900daf4a9c23d52fce492223c41a5958"
+    },
+    {
+      "file": "slide-3.png",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 262229,
+      "sha256": "1a9b747f90014014663b92a71e87c69a0d78a951bbedd1d4cef6492374d44484"
+    },
+    {
+      "file": "slide-4.png",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 310619,
+      "sha256": "d29841ca8c4fc67dd37e130d72242687eab6ef04c7c8a279c285a63a4c46b360"
+    },
+    {
+      "file": "slide-5.png",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 277007,
+      "sha256": "fe4ae58429720aa5fbc948bf0184b51bc1c3ca4237a644a4a8cd451250219d81"
+    },
+    {
+      "file": "icon-128.png",
+      "width": 128,
+      "height": 128,
+      "bytes": 11174,
+      "sha256": "d882396f6ac14dcb65d861029b5a5524c07d88bfd0bc886fce00a8d7248c2e1d"
+    },
+    {
+      "file": "icon-512.png",
+      "width": 512,
+      "height": 512,
+      "bytes": 76222,
+      "sha256": "586f04121596ab588c4551443046b5d91d0c8a6a6fbc04405e01fddd592b73d6"
+    }
+  ]
+}
